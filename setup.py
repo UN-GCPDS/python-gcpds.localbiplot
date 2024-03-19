@@ -7,9 +7,9 @@ with open(os.path.join(os.path.dirname(__file__), 'README.md')) as readme:
 os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
-    name="gcpds-{{ vars.DOCS_SUBMODULE }}",
+    name="gcpds-localbiplot",
     version='0.1',
-    packages=["gcpds-{{ vars.DOCS_SUBMODULE }}"],
+    packages=["gcpds.localbiplot"],
     author="Jenniffer Carolina Triana Martinez",
     author_email="jectrianama@unal.edu.co",
     maintainer="Jenniffer Carolina Triana Martinez",
