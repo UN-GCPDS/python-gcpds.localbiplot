@@ -9,13 +9,13 @@
 # if __name__ == "__main__":
 #     print(greet("World"))
 
-libraries_to_install = {'adjustText': 'adjustText'} #'adjustText': 'adjustText',  'umap-learn': 'umap'
+# libraries_to_install = {'adjustText': 'adjustText'} #'adjustText': 'adjustText',  'umap-learn': 'umap'
 
-for library, alias in libraries_to_install.items():
-    try:
-        exec(f"import {alias}")
-    except ImportError:
-        pip install {library} --quiet
+# for library, alias in libraries_to_install.items():
+#     try:
+#         exec(f"import {alias}")
+#     except ImportError:
+#         pip install {library} --quiet
 
 
 #librerias a importar
@@ -44,7 +44,7 @@ from scipy.stats import multivariate_normal
 from scipy.optimize import minimize
 from scipy import interpolate
 
-from adjustText import adjust_text
+#from adjustText import adjust_text
 
 
 
@@ -617,10 +617,10 @@ class LocalBiplot(): #Poner en CamelCase
                      head_width= arrow_size, head_length= arrow_size, color='gray', linewidth=1.1)
             # ax.text(((arrow_x[k]) / xratio)*0.5 + ZcA_mean[0] + 0.05, (arrow_y[k] / yratio)*0.5 + ZcA_mean[1],
             #         s='f' + str(k + 1), fontsize=16, color='black')
-            texts = [ax.text(((arrow_x[k]) / xratio)*0.5 + 0.03 + ZcA_mean[0], (arrow_y[k] / yratio)*0.5 + ZcA_mean[1]+ 0.01,
-                     s='f' + str(k + 1), fontsize=16, color='black')] #, fontsize=15
+            ax.text(((arrow_x[k]) / xratio)*0.5 + 0.03 + ZcA_mean[0], (arrow_y[k] / yratio)*0.5 + ZcA_mean[1]+ 0.01,
+                     s='f' + str(k + 1), fontsize=16, color='black') #, fontsize=15
 
-        adjust_text(texts, arrowprops=dict(arrowstyle="->", color='r', lw=0.5))
+        #adjust_text(texts, arrowprops=dict(arrowstyle="->", color='r', lw=0.5))
         #ax.set_xlim((-1,1))
         ax.set_ylim((-1,1.4))
         # Set plot title and axis labels
