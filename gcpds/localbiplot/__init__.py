@@ -15,7 +15,7 @@ for library, alias in libraries_to_install.items():
     try:
         exec(f"import {alias}")
     except ImportError:
-        !pip install {library} --quiet
+        pip install {library} --quiet
 
 
 #librerias a importar
