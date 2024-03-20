@@ -40,7 +40,7 @@ las librerias
     !pip install -U git+https://github.com/Jectrianama/python-gcpds.localbiplot.git --quiet
 
 
-2.2 Añadir la libreria en su código como :
+2.2 Añadir la librería en su código como :
 
 .. code:: ipython3
 
@@ -69,4 +69,3 @@ capacidades de la herramienta.
 
 8. Principales casos de uso
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-

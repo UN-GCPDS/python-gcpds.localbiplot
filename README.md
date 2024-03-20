@@ -27,7 +27,7 @@ localbiplot necesita Python >= 3.8  y acceso a internet para descargar las libre
 
 ```
 
-2.2 Añadir la libreria  en su código como :
+2.2 Añadir la librería  en su código como :
 
 
 ```python
@@ -54,8 +54,3 @@ La biblioteca local biplot esta desarrollado utilizando python 3.11. Ademas, el 
 ### 7. Diagrama entidad relación de las estructuras de datos o en su defecto estructura de funcionamiento e interacción del sistema de archivos
 
 ### 8. Principales casos de uso
-
-
-```python
-
-```
