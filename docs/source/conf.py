@@ -34,3 +34,5 @@ exclude_patterns = []
 html_theme = 'alabaster'
 html_static_path = ['_static']
 autodoc_mock_imports = ["matplotlib", 'numpy', 'pandas', 'seaborn', 'sklearn', 'scipy']
+master_doc = 'index'
+
