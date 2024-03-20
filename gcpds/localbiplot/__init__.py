@@ -185,52 +185,6 @@ class LocalBiplot(): #Poner en CamelCase
         return self.data_scaler(self.reduce_dimensions.fit_transform(X))
 
 
-
-    def krbf(self,X):
-        """
-        Calculate the Radial Basis Function (RBF) kernel matrix for the input data.
-
-        Parameters:
-        ----------
-        - X : list | np.ndarray
-              Input matrix of shape N x P.
-
-        Returns:
-        ----------
-        - list | np.ndarray  N x N RBF kernel matrix.
-        """
-        # Calculate pairwise Euclidean distances between data points
-        distance_matrix  = cdist(X,X)
-        # Calculate the median of pairwise distances
-        sigma_square = 0.5*np.median(squareform(distance_matrix))
-        # Calculate the RBF kernel matrix using the median distance
-        return np.exp(-distance_matrix**2/sigma_square)
-
-    def center_kernel(self, K):
-
-        """
-        Center a given kernel matrix using the Kernel Centering method.
-
-        Parameters:
-        ----------
-        - K: np.ndarray
-             An N x N or P x P Input kernel matrix.
-
-        Returns:
-        ----------
-        - np.ndarray: Centered kernel matrix.
-        """
-        # Get the number of samples
-        n = K.shape[0]
-        # Create a column vector of ones
-        one_n = np.ones((n,1))
-        # Calculate the centering matrix H
-        H = np.eye(n) - (1 / n) * np.dot(one_n, one_n.T)
-        # Center the kernel matrix using the Kernel Centering method and return it
-        return (H.dot(K)).dot(H)
-
-
-
     #input features laplacian score
     def laplacian_score(self,X,K, tol=1e-10):
         """
@@ -265,7 +219,7 @@ class LocalBiplot(): #Poner en CamelCase
         kernel calculations, and Laplacian score computation.
 
         Returns:
-        ----------
+        --------
         - YourClass instance: The modified instance with processed and analyzed data.
         """
 
@@ -288,208 +242,7 @@ class LocalBiplot(): #Poner en CamelCase
 
         return self
 
-    #======================= funciones GMD ===========================================
-
-    # Funcion get_uv_
-    def get_uv(self, X, H, Q, u_0, v_0):#H N x N, Q P x P
-        """
-
-        GMD Algorithm (power method) for matrix factorization.
-
-        Parameters:
-        ----------
-        - X (numpy.ndarray): Input matrix of shape N x P.
-        - H (numpy.ndarray): Matrix H of shape (N, N).
-        - Q (numpy.ndarray): Matrix Q of shape (P, P).
-        - u_0 (numpy.ndarray): Initial vector u of shape (N,).
-        - v_0 (numpy.ndarray): Initial vector v of shape (P,).
-
-        Returns:
-        ----------
-        dict: A dictionary containing the following key-value pairs:
-            - 'u' (numpy.ndarray): Matrix U of shape (N, K), where K is the number of iterations.
-            - 'v' (numpy.ndarray): Matrix V of shape (P, K), where K is the number of iterations.
-
-        Details:
-        ----------
-
-        GMD Algorithm (power method)
-        1. Let $\mathbf{\check{X}}^{(1)} = \mathbf{X}$ and initialize $\mathbf{u}_1$ and $\mathbf{v}_1$
-
-        2.  For $k= 1...K:$
-
-        (a) Repeat until convergence:
-        * set $\mathbf{u}_k = \frac{\mathbf{\check{X}}^{(k)}\mathbf{R}\mathbf{v}_k}{|| \mathbf{\check{X}}^{(k)}\mathbf{R}\mathbf{v}_k||_\mathbf{H}}$
-
-        * set $\mathbf{v}_k = \frac{\mathbf{(\check{X}}^{(k)})^T\mathbf{H} \mathbf{u}_k}{|| \mathbf{\check{X}}^{(k)}\mathbf{H}\mathbf{u}_k||_\mathbf{R}}$
-
-        (b) set $d_k = \mathbf{u}_k^T \mathbf{H}\mathbf{\check{X}}^{(k)}\mathbf{R}\mathbf{v}_k$
-
-        (c) set $\mathbf{\check{X}}^{(k+1)} = \mathbf{\check{X}}^{(k)} -  \mathbf{u}_k d_k \mathbf{v}_k^T $
-
-        3. Return $\mathbf{\tilde{U}} = [\mathbf{u_1,..., u_k}], \mathbf{\tilde{V}}= [\mathbf{v_1,..., v_k}], \mathbf{\tilde{S}} = diag(d_1,...d_k) $ .
-        """
-
-        u = X @ Q @ v_0 / (np.sqrt(v_0.T @ Q.T @ X.T @ H @ X @ Q @ v_0))
-        v = X.T @ H @ u / (np.sqrt(u.T @ H.T @ X @ Q @ X.T @ H @ u))
-        return {'u': u, 'v': v}
-
-
-    # Funcion para hacer fit:
-    def GMD(self, X, H, Q, K):
-        """
-        Generalized Matrix Decomposition method (power method)
-
-        Computes the generalized matrix decomposition of X.
-
-        The K-dimensional GMD of X with respect to H and Q is given by X = USV^T, where
-        \deqn{(U, S, V) = argmin_{U,S,V} ||X - USV^T||^2_{H, Q},}
-        subject to \eqn{U^THU = I_K, V^TQV = I_K} and \eqn{diag(S) \ge 0}. Here, for any N x P matrix A,
-        ||A||^2_{H,Q} = tr(A^THAQ).
-
-        Parameters:
-        ----------
-        - X An N x P data matrix.
-        - H An N x N positive semi-definite similarity kernel.
-        - Q An P x P positive semi-definite similarity kernel.
-        - K a scalar specifying the dimension of GMD components (see Details).
-
-        Returns:
-        ----------
-        A list of the GMD components U, S, V, H and Q (see Details).
-        @author Parker Knight and Yue Wang \email{ywang2310@fredhutch.org}
-        @references Allen, G. I., L. Grosenick, and J. Taylor (2014). A generalized least-square matrix decom- position. Journal of the American Statistical Association 109(505), 145–159.
-        """
-
-
-        error_vec = []
-        n, p = X.shape
-        # Output matrices/vectors
-        U = np.zeros((n, K))
-        V = np.zeros((p, K))
-        D = np.zeros(K)
-        X_0 = X
-        u_0 = np.concatenate(([1], np.zeros(n-1)))
-        v_0 = np.concatenate(([1], np.zeros(p-1)))
-        for iter in range(1, K + 1):
-            error = 1
-            while error > 1e-14:
-                temp_uv = self.get_uv(X_0, H, Q, u_0, v_0)
-                u = temp_uv['u']
-                v = temp_uv['v']
-                error = np.linalg.norm(u - u_0, ord=2) + np.linalg.norm(v - v_0, ord=2)
-                error_vec += [error]
-                u_0 = u
-                v_0 = v
-            U[:, iter - 1] = u
-            V[:, iter - 1] = v
-            d = u.T @ H @ X_0 @ Q @ v
-            D[iter - 1] = d
-            X_0 = X_0 - (u[:, np.newaxis]*d)@v[np.newaxis, :]
-        # plt.plot(error_vec)
-        # plt.xlabel('iterations')
-        # plt.ylabel('error grater than 1e-5')
-        gmd_output = GMDOutput()
-        gmd_output.U = U
-        gmd_output.V = V
-        gmd_output.D = D
-        gmd_output.H = H
-        gmd_output.Q = Q
-        gmd_output.X = X
-        return gmd_output
-
-
-    def biplot_gmd_body(self, fit, index=None, names=None, sample_col='grey50', sample_pch=19, arrow_col='orange', arrow_cex=1):
-        """
-
-        The GMD-biplot
-            Biplots based on generelized matrix decomposition.
-
-            Parameters:
-            ----------
-            An object of class "gmd" that is the output from GMD method.
-            ... Optional arguments (see Details).
-
-            Details
-            ----------
-            The optional arguments that can be passed in the biplot are
-            \itemize{
-
-              \item index: a numeric vector specifying which variables(arrows) to display. The default is to plot the three longest arrows.}
-              \item names:  a string vector specifying the names of the arrows. The default name of the i-th variable is Vi.
-              \item sample_col: The color of the sample dots. The default is grey.
-              \item sample_pch: Either an integer specifying a symbol or a single character to be used in plotting sample points. The default is 19.
-              \item arrow_col: The color of the arrows. The default is orange.
-              \item arrow_cex: A numeric value giving the size of the labels of the arrows. The default is 1.
-              }
-
-            @author Parker Knight and Yue Wang \email{ywang2310@fredhutch.org}
-            @references Yue Wang, Timothy Randolph, Ali Shojaie and Jing Ma (2019). The GMD-biplot and its application to microbiome data.
-
-            """
-        U = fit.U
-        D = fit.D
-        V = fit.V
-        U = U[:, np.argsort(D)[::-1]]
-        V = V[:, np.argsort(D)[::-1]]
-        k1 = np.argsort(D)[::-1][0]
-        k2 = np.argsort(D)[::-1][1]
-        D = np.sort(D)[::-1]
-        eta = U @ np.diag(D)
-        max_xlab = np.max(np.abs(eta[:, 0]))
-        max_ylab = np.max(np.abs(eta[:, 1]))
-        plt.figure(figsize=(8, 6))
-        #plt.scatter(eta[:, 0], eta[:, 1],  c=sample_col)
-        sns.scatterplot(x=eta[:, 0],
-                    y= eta[:, 1],
-                    hue =sample_col, palette = "viridis")
-        plt.xlabel(f'PC{k1}', fontsize=16)
-        plt.ylabel(f'PC{k2}', fontsize=16)
-        plt.xlim(-1.1 * max_xlab, 1.1 * max_xlab+1)
-        plt.ylim(-1.1 * max_ylab, 1.1 * max_ylab+1)
-        # calculate coordinates
-
-        Q = fit.Q
-        V_plot = Q @ V
-        arrow_x = V_plot[:, 0]
-        arrow_y = V_plot[:, 1]
-        max_xarrow = np.max(np.abs(arrow_x))
-        max_yarrow = np.max(np.abs(arrow_y))
-        xratio = max_xarrow / max_xlab
-        yratio = max_yarrow / max_ylab
-
-        xaxp = np.linspace(-max_xlab, max_xlab, num=5)
-        yaxp = np.linspace(-max_ylab, max_ylab, num=5)
-
-        xlab_arrow = xaxp * xratio
-        ylab_arrow = yaxp * yratio
-        print(f"len of V = {len(V)}")
-        print(f"len of x arrow = {len(arrow_x)}")
-        print(f"len of y arrow = {len(arrow_y)}")
-        print(f"len of names = {len(names)}")
-        iter = 0
-        for i in index:
-
-            #arrow_length = np.sqrt(arrow_x[i] ** 2 + arrow_y[i] ** 2)
-            #if arrow_length >= 0.1:
-            plt.arrow(0, 0, arrow_x[i] / xratio, arrow_y[i] / yratio, head_width=0.1, head_length=0.1,  color=arrow_col)
-            if names is not None:
-            # print(f"i = {i}")
-              plt.text(arrow_x[i]/ xratio, arrow_y[i] / yratio * 1.06, names[iter], fontsize=17, color='black')
-              iter += 1
-
-        # Add new axes
-        plt.xticks(xaxp, labels=[f'{round(val, 2)}' for val in xlab_arrow], fontsize=16)
-        plt.yticks(yaxp, labels=[f'{round(val, 2)}' for val in ylab_arrow], fontsize=16)
-        plt.gca().tick_params(axis='both', which='both', length=0)
-        plt.legend(loc='upper left', title= sample_col.name)
-        plt.legend(fontsize=16)
-        #plt.colorbar()
-
-        plt.show()
-
-    #===================== Fin funciones GMD ============================================
-
+   
 
     def plot_lnkbp_(self,hue, c, figsize = (25,10)):
         """
@@ -569,7 +322,7 @@ class LocalBiplot(): #Poner en CamelCase
         Plot the non-linear local-Biplot SVD.
 
         Parameters:
-        ----------
+        -----------
         - ax (matplotlib.axes._subplots.AxesSubplot): Axes on which to plot.
         - ZcA (numpy.ndarray): Transformed points of the cluster.
         - VA (numpy.ndarray): Transformed vector arrows of the cluster.
@@ -577,7 +330,7 @@ class LocalBiplot(): #Poner en CamelCase
         - arrow_size
 
         Returns:
-        ----------
+        --------
         None
         """
 
@@ -650,7 +403,7 @@ class LocalBiplot(): #Poner en CamelCase
           Apply an affine transformation to the input array using the given parameters.
 
           Parameters:
-          ----------
+          -----------
           - parameters (array-like): Affine transformation parameters.
               - parameters[0]: Scaling factor
               - parameters[1]: Rotation angle (in radians)
@@ -658,7 +411,7 @@ class LocalBiplot(): #Poner en CamelCase
           - array_A (array-like): Input array to be transformed.
 
           Returns:
-          ----------
+          --------
           - array-like: Transformed array after applying the affine transformation.
 
           """
@@ -679,14 +432,14 @@ class LocalBiplot(): #Poner en CamelCase
         Compute the registration error between two sets of 2D points after applying an affine transformation.
 
         Parameters:
-        ----------
+        -----------
 
         - parameters (array-like): Affine transformation parameters.
         - array_A (array-like): Source set of 2D points (N x 2 array).
         - array_B (array-like): Target set of 2D points (N x 2 array).
 
         Returns:
-        ----------
+        --------
 
         - float: Registration error, calculated as the Frobenius norm of the difference
                 between the transformed source points and the target points.
@@ -828,30 +581,6 @@ class LocalBiplot(): #Poner en CamelCase
 
 
         return U, S, VT, S_, A, B, Zc
-
-    def plot_correlation_matrix(self, ax, data, title, color='black', fontsize = 12):
-        """
-        Plot a correlation matrix subplot.
-
-        Parameters:
-        ----------
-        - ax (matplotlib.axes._subplots.AxesSubplot): Axes for the subplot.
-        - data (numpy.ndarray): Data for the correlation matrix.
-        - title (str): Title for the subplot.
-        - color: Color for the title.
-
-        Returns:
-        ----------
-        None
-        """
-        im = ax.imshow(data, cmap='viridis')
-        # ax.set_title(title, color=color, fontsize=fontsize)
-        # ax.set_xlabel('Index', fontsize=fontsize)
-        # ax.set_ylabel('Index', fontsize=fontsize)
-        # im.set_clim(-1, 1)
-
-
-        return im
 
 
         return
