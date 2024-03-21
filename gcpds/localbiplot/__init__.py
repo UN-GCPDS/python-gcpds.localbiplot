@@ -98,8 +98,6 @@ class LocalBiplot(): #Poner en CamelCase
         kernel calculations, and Laplacian Score computation.
     localbp_(X_)
           Perform a local biplot operation on the scaled data (currently commented out).
-    plot_lnkbp_(hue, c, figsize=(25, 10))
-        Plot various visualizations, including scatter plots, kernel matrices, and feature relevance.
     affine_transformM(parameters, array_A)
         Apply an affine transformation to the input array using the given parameters.
     registration_errorM(parameters, array_A, array_B)
@@ -231,78 +229,7 @@ class LocalBiplot(): #Poner en CamelCase
 
         return self
 
-   
-
-    def plot_lnkbp_(self,hue, c, figsize = (25,10)):
-        """
-        Plot various visualizations for Kernel Biplots (KBP) and Laplacian Score (LS).
-
-        Parameters:
-        ----------
-        - hue: str
-            Variable to use for coloring in scatter plots.
-        - c: str
-            Variable to use for coloring in the scatter plot.
-        - figsize: tuple, optional
-            Figure size (default is (25, 10)).
-
-        Returns:
-        ----------
-        None
-
-        Plots:
-        ----------
-        - Subplot 1: Scatter plot with Kernel Density Estimate (KDE).
-        - Subplot 2: Scatter plot with local biplot markers.
-        - Subplot 3: Kernel matrix for samples (KX).
-        - Subplot 4: Kernel matrix for reduced dimensions (KZ).
-        - Subplot 5: Kernel matrix for input features (KXF).
-        - Subplot 6: Bar plot showing Laplacian Scores for Z (LS_Z) and X (LS_X).
-
-        """
-        fig, ax = plt.subplots(2,3,figsize=figsize)
-
-        # Scatter plot with Kernel Density Estimate (KDE)
-        kdeplot(data=self.X, x='P1', y='P2',hue=hue, ax=ax[1,0], levels=3)
-        self.X.plot(kind='scatter',x='P1',y='P2',ax=ax[1,0],c=c,cmap='jet',legend=False)
-
-        # Scatter plot with local biplot markers
-        cmap_ = matplotlib.cm.jet(np.linspace(0,1,len(self.C)))
-        for c,vc in enumerate(self.C):
-            ax[1,1].scatter(self.muZ[c,0],self.muZ[c,1],marker='d',s=100,c=cmap_[c])
-            ax[1,1].scatter(self.lpca[c][:,0],self.lpca[c][:,1],c=cmap_[c])
-
-        # Kernel matrices for samples (KX), reduced dimensions (KZ), and input features (KXF)
-        vmin = min(self.KX.ravel().min(),self.KZ.ravel().min(),self.KXF.ravel().min() )
-        vmax = max(self.KX.ravel().max(),self.KZ.ravel().max(),self.KXF.ravel().max() )
-        ax[0,0].imshow(self.KX,vmin=vmin,vmax=vmax, cmap='Reds')
-        ax[0,0].set_xlabel('Samples')
-        ax[0,0].set_ylabel('Samples')
-        ax[0,1].imshow(self.KZ,vmin=vmin,vmax=vmax, cmap='Reds')
-        ax[0,1].set_xlabel('Samples')
-        ax[0,1].set_ylabel('Samples')
-
-
-        im_ = ax[0,2].imshow(self.KXF,vmin=vmin,vmax=vmax, cmap='Reds')
-        ax[0,2].set_xlabel('Features')
-        ax[0,2].set_ylabel('Features')
-        # Colorbar for kernel matrices
-        cax = fig.add_axes([0.92, 0.5, 0.01, 0.4])
-        norm = matplotlib.colors.Normalize(vmin=vmin,vmax=vmax)
-        sm = plt.cm.ScalarMappable(cmap='Reds', norm=norm)
-        sm.set_array([])
-        cbar = plt.colorbar(sm,cax=cax)
-
-        #feature relevance  showing Laplacian Scores for Z (LsZ) and X (lsX)
-        ax[1,2].bar(np.arange(len(self.lsZ)),self.lsZ,label='LS_Z')#red kernel
-        ax[1,2].bar(np.arange(len(self.lsX)),self.lsX,bottom=self.lsZ,label='LS_X')#input kernel
-
-        ax[1,2].set_xticks(ticks=np.arange(len(self.lsX)),labels=self.columns_,rotation=90)
-        ax[1,2].legend()
-        ax[1,2].set_ylabel('Laplacian Score')
-        plt.subplots_adjust(hspace=0.3, wspace=0.3)
-        #plt.tight_layout()
-        plt.show()
+    
 
 
 
