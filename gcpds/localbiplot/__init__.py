@@ -520,7 +520,7 @@ class LocalBiplot(): #Poner en CamelCase
             ind_ = tar_ == v
 
             # Perform PCA by SVD
-            Uc, Sc, Vhc, S_, A, B, Zc = self.pca_by_SVD(self.rice_.X_[ind_])
+            Uc, Sc, Vhc, S_, A, B, Zc = self.pca_by_SVD(self.X_[ind_])
 
             # Store results
             U.append(Uc)
