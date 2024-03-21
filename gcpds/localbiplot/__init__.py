@@ -206,8 +206,7 @@ class LocalBiplot(): #Poner en CamelCase
     def LocalBiplot_(self):
         """
         Process and analyze the data using a series of steps, including scaling and dimensionality reduction.
-        
-
+ 
         Returns:
         --------
         - YourClass instance: The modified instance with processed and analyzed data.
