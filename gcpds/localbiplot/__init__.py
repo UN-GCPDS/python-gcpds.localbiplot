@@ -91,6 +91,10 @@ class LocalBiplot(): #Poner en CamelCase
         Scale the data using MinMaxScaler if 'sca' is set to 'minmax'.
     reduce_dimensions(X)
         Reduce the dimensionality of the data using t-SNE, PCA, or UMAP.
+    krbf(X)
+        Calculate the Radial Basis Function (RBF) kernel matrix for the input data.
+    center_kernel(K)
+        Center a given kernel matrix using the Kernel Centering method.
     laplacian_score(X, K, tol=1e-10)
         Calculate the Laplacian score for a given dataset and kernel matrix.
     lnkbp_()
@@ -98,6 +102,14 @@ class LocalBiplot(): #Poner en CamelCase
         kernel calculations, and Laplacian Score computation.
     localbp_(X_)
           Perform a local biplot operation on the scaled data (currently commented out).
+    laplacian_score(X, K, tol=1e-10)
+        Calculate the Laplacian score for a given dataset and kernel matrix
+    GMD(X, H, Q, K)
+        Generalized Matrix Decomposition method (power method) for a given dataset and kernel matrices.
+    biplot_gmd_body(fit, index=None, names=None, sample_col='grey50', sample_pch=19, arrow_col='orange', arrow_cex=1)
+        Generate a GMD-biplot based on generalized matrix decomposition results.
+    plot_lnkbp_(hue, c, figsize=(25, 10))
+        Plot various visualizations, including scatter plots, kernel matrices, and feature relevance.
     affine_transformM(parameters, array_A)
         Apply an affine transformation to the input array using the given parameters.
     registration_errorM(parameters, array_A, array_B)
@@ -150,11 +162,11 @@ class LocalBiplot(): #Poner en CamelCase
         Reduce the dimensionality of the input data using t-SNE, PCA, or UMAP.
 
         Parameters:
-        ----------
+        -----------
         - X (array-like): Input matrix of shape N x P. Input data to be dimensionality reduced.
 
         Returns:
-        ----------
+        --------
         - An n x 2 array-like dimensionality reduced data.
         """
 
@@ -173,38 +185,15 @@ class LocalBiplot(): #Poner en CamelCase
         return self.data_scaler(self.reduce_dimensions.fit_transform(X))
 
 
-    #input features laplacian score
-    def laplacian_score(self,X,K, tol=1e-10):
-        """
-        Calculate the Laplacian score for a given dataset and kernel matrix.
 
-        Parameters:
-        ----------
-        - X: np.ndarray
-             Input matrix of shape N x P.
-        - K: np.ndarray
-             Kernel matrix.
-        - tolerance: float, optional
-                     Tolerance value for numerical stability. Defaults to 1e-10.
 
-        Returns:
-        ----------
-        - np.ndarray : Laplacian score for each data point.
-        """
-        # Calculate the diagonal matrix Dl of the kernel matrix
-        Dl = np.diag(K.sum(axis=1)+tol)
-        # Calculate the unnormalized Laplacian matrix L
-        L = Dl - K # unnormalized
-        #L = np.eye(Kk.shape[0])-np.diag((np.diag(Dl)**(-0.5))).dot(Kk).dot(np.diag((np.diag(Dl)**(-0.5))))
-        # Center the data points
-        X_ = X - np.kron(np.ones((1,Dl.shape[0])),((X.T).dot(Dl)).dot(np.ones((Dl.shape[0],1)))/(np.sum(np.diag(Dl)))).T
-        # Calculate Laplacian score for each data point
-        return np.diag((X_.T).dot(L).dot(X_))/np.diag((X_.T).dot(Dl).dot(X_))
 
+   
     def LocalBiplot_(self):
         """
-        Process and analyze the data using a series of steps, including scaling and dimensionality reduction.
- 
+        Process and analyze the data using a series of steps, including scaling, dimensionality reduction,
+        kernel calculations, and Laplacian score computation.
+
         Returns:
         --------
         - YourClass instance: The modified instance with processed and analyzed data.
@@ -217,19 +206,13 @@ class LocalBiplot(): #Poner en CamelCase
         # Step 3: Perform a local biplot operation on the scaled data
         #self.localbp_(self.X_)
         # Step 4: Add the reduced dimensions to the original data
-        #self.X['P1'] = self.Z[:,0] #add red to pd
-        #self.X['P2'] = self.Z[:,1]
+        self.X['P1'] = self.Z[:,0] #add red to pd
+        self.X['P2'] = self.Z[:,1]
         # Step 5: Calculate kernel matrices for X scaled and Z
-        #self.KX = self.krbf(self.X_) #kernel X samples
-        # self.KXF = self.krbf(self.X_.T) #kernel X features
-        # self.KZ = self.krbf(self.Z) # kernel Z samples
-        # Step 6: Calculate Laplacian scores for X and Z
-        #self.lsX = self.laplacian_score(self.X_,self.KX) #features KX
-        #self.lsZ = self.laplacian_score(self.X_,self.KZ) #features KZ
-
+        
         return self
 
-    
+   
 
 
 
@@ -238,7 +221,7 @@ class LocalBiplot(): #Poner en CamelCase
         Plot the non-linear local-Biplot SVD.
 
         Parameters:
-        -----------
+        ----------
         - ax (matplotlib.axes._subplots.AxesSubplot): Axes on which to plot.
         - ZcA (numpy.ndarray): Transformed points of the cluster.
         - VA (numpy.ndarray): Transformed vector arrows of the cluster.
@@ -291,12 +274,10 @@ class LocalBiplot(): #Poner en CamelCase
         for k in range(VA.shape[0]):
             ax.arrow(ZcA_mean[0], ZcA_mean[1], (arrow_x[k] / xratio)*0.5, (arrow_y[k] / yratio)*0.5,
                      head_width= arrow_size, head_length= arrow_size, color='gray', linewidth=1.1)
-            # ax.text(((arrow_x[k]) / xratio)*0.5 + ZcA_mean[0] + 0.05, (arrow_y[k] / yratio)*0.5 + ZcA_mean[1],
-            #         s='f' + str(k + 1), fontsize=16, color='black')
             ax.text(((arrow_x[k]) / xratio)*0.5 + 0.03 + ZcA_mean[0], (arrow_y[k] / yratio)*0.5 + ZcA_mean[1]+ 0.01,
-                     s='f' + str(k + 1), fontsize=16, color='black') #, fontsize=15
+                     s='f' + str(k + 1), fontsize=16, color='black')
 
-        #adjust_text(texts, arrowprops=dict(arrowstyle="->", color='r', lw=0.5))
+        
         #ax.set_xlim((-1,1))
         ax.set_ylim((-1,1.4))
         # Set plot title and axis labels
@@ -319,7 +300,7 @@ class LocalBiplot(): #Poner en CamelCase
           Apply an affine transformation to the input array using the given parameters.
 
           Parameters:
-          -----------
+          ----------
           - parameters (array-like): Affine transformation parameters.
               - parameters[0]: Scaling factor
               - parameters[1]: Rotation angle (in radians)
@@ -348,14 +329,14 @@ class LocalBiplot(): #Poner en CamelCase
         Compute the registration error between two sets of 2D points after applying an affine transformation.
 
         Parameters:
-        -----------
+        ----------
 
         - parameters (array-like): Affine transformation parameters.
         - array_A (array-like): Source set of 2D points (N x 2 array).
         - array_B (array-like): Target set of 2D points (N x 2 array).
 
         Returns:
-        --------
+        ----------
 
         - float: Registration error, calculated as the Frobenius norm of the difference
                 between the transformed source points and the target points.
@@ -380,11 +361,11 @@ class LocalBiplot(): #Poner en CamelCase
         - ind_ (array-like): Boolean array indicating the indices of the cluster.
 
         Returns:
-        ----------
+        --------
         - Tuple: A tuple containing the optimized parameters and the transformed cluster points.
 
         Notes:
-        ----------
+        ------
         This function performs optimization to find the best affine transformation parameters
         using the Nelder-Mead method. It then applies the optimized transformation to the cluster points.
         """
@@ -420,11 +401,11 @@ class LocalBiplot(): #Poner en CamelCase
           Defaults to 5.
 
         Returns:
-        ----------
+        --------
         - list | np.ndarray : An array of cluster labels assigned by the DBSCAN algorithm.
 
         Notes:
-        ----------
+        ------
         If `eps_` is not provided, it is calculated as a percentile of the pairwise Euclidean distances
         between points in the input data `Z`.
 
@@ -449,12 +430,12 @@ class LocalBiplot(): #Poner en CamelCase
           Input data N x P.
 
         Returns:
-        ----------
+        --------
 
         -  U, S, VT, S_, A, B
 
         Details:
-        ----------
+        --------
 
         Singular Value Decomposition
 
@@ -497,7 +478,109 @@ class LocalBiplot(): #Poner en CamelCase
 
 
         return U, S, VT, S_, A, B, Zc
+    
+    def compute_variance_ratio(self,Sc):
+      """
+      Compute eigenvalues, total variance, and explained variance ratio by principal component.
 
+      Parameters:
+      - Sc: Array of singular values from SVD.
+
+      Returns:
+      - explained_variance_ratio: Array of explained variance ratios.
+      """
+      # Compute eigenvalues
+      eigenvalues = Sc ** 2
+      total_variance = np.sum(eigenvalues)
+      explained_variance_ratio = np.round((eigenvalues / total_variance) * 100, 2)
+
+      return explained_variance_ratio
+        
+
+
+    def get_localbp_(self, tar_, Ck, databp):
+
+        # Set colormap
+        cmap = plt.cm.get_cmap('Paired')
+        # Create colormap for clusters
+        cmap_ = cmap(np.linspace(0, 1, Ck))
+        fontsize = 20
+
+        U = []
+        Vh = []
+        S = []
+
+        # Create subplots
+        fig3, ax3 = plt.subplots(2, Ck + 1, figsize=(12, 7))
+        plt.subplots_adjust(wspace=0.05, hspace=0.1)
+        fig1, ax1 = plt.subplots(1, 1, figsize=(8, 8))
+
+        # Iterate over clusters
+        for i, v in enumerate(np.unique(tar_)):
+            ind_ = tar_ == v
+
+            # Perform PCA by SVD
+            Uc, Sc, Vhc, S_, A, B, Zc = self.pca_by_SVD(self.rice_.X_[ind_])
+
+            # Store results
+            U.append(Uc)
+            S.append(Sc)
+            Vh.append(Vhc[:2, :].T)
+
+            # Compute affine transform
+            optimized_params, ZcA, VA = self.optimize_affine_transform(Zc, (Vhc[:2, :].T).dot(np.diag(Sc[:2])**(0.5)),
+                                                                        Sc, ind_)
+
+            # Compute eigenvalues and explained variance ratio
+            explained_variance_ratio = self.compute_variance_ratio(Sc)
+            print(f"Explained variance ratio by principal component: {explained_variance_ratio}")
+
+            # Plot non-linear local-Biplot SVD
+            self.rice_.plot_transformed_clusters(ax1, self.Z[ind_], VA, cmap_[i])
+
+            # Plot correlation of input data
+            sns.heatmap(np.abs(np.corrcoef(self.X_.T).round(3)),  ax=ax3[0, 0], vmin=0, vmax=1, cmap='Reds', cbar=False,
+                        linecolor="w", linewidths=1, xticklabels=databp.columns, yticklabels=databp.columns)
+            ax3[0, 0].set_ylabel('Input data', fontsize=fontsize)
+            ax3[0, 0].tick_params(axis='y', labelsize=fontsize)
+            ax3[0, 0].tick_params(axis='x', labelsize=fontsize)
+            ax3[1, 0].axis("off")
+
+            # Plot correlation biplot matrix B
+            sns.heatmap(np.abs(np.corrcoef(Vhc.T[:, :Sc.shape[0]].dot((np.diag(Sc))**(0.5))).round(3)),  ax=ax3[1, i + 1],
+                        vmin=0, vmax=1, robust=True, cmap='Reds', cbar=False, linecolor="w", linewidths=1,
+                        yticklabels=databp.columns)
+
+            # Plot correlation of input data matrix
+            sns.heatmap(np.abs(np.corrcoef(self.X_[ind_].T).round(3)), vmin=0, vmax=1,  ax=ax3[0, i + 1], cmap='Reds',
+                        cbar=False, linecolor="w", linewidths=1, xticklabels=False)
+            ax3[0, i + 1].yaxis.set_ticklabels([])
+            ax3[0, i + 1].set_title('Cluster ' + str(i + 1), fontsize=fontsize, color=cmap_[i])
+            ax3[1, i + 1].set_xticks([])
+            ax3[1, i + 1].yaxis.set_ticklabels([])
+
+            if i == 1:
+                ax3[1, i].set_ylabel('NLLBiplot', fontsize=fontsize)
+                ax3[1, 1].tick_params(axis='x', labelsize=fontsize)
+                ax3[1, 1].tick_params(axis='y', labelsize=fontsize)
+                ax3[1, 1].xaxis.set_ticks(np.arange(len(databp.columns))+0.5)
+                ax3[1, 1].xaxis.set_ticklabels(databp.columns)
+                ax3[1, 1].yaxis.set_ticks(np.arange(len(databp.columns))+0.5)
+                ax3[1, 1].yaxis.set_ticklabels(databp.columns)
+
+        # Add colorbar for last heatmap
+        cbar_ax = fig3.add_axes([0.93, 0.15, 0.015, 0.68])  
+        cbar_ax.tick_params(labelsize=fontsize)
+        norm = Normalize(vmin=0, vmax=1)  # Customize normalization if needed
+        sm = plt.cm.ScalarMappable(cmap='Reds', norm=norm)
+        sm.set_array([])
+        fig3.colorbar(sm, cax=cbar_ax)
+        plt.tight_layout()
+        fig3.savefig('correlations_projections_and_clusters.pdf', bbox_inches='tight')
+        fig1.savefig('local-biplot_SVD.pdf', bbox_inches='tight')
+        plt.show()
+
+    
 
         return
 
