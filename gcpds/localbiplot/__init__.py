@@ -91,10 +91,6 @@ class LocalBiplot(): #Poner en CamelCase
         Scale the data using MinMaxScaler if 'sca' is set to 'minmax'.
     reduce_dimensions(X)
         Reduce the dimensionality of the data using t-SNE, PCA, or UMAP.
-    krbf(X)
-        Calculate the Radial Basis Function (RBF) kernel matrix for the input data.
-    center_kernel(K)
-        Center a given kernel matrix using the Kernel Centering method.
     laplacian_score(X, K, tol=1e-10)
         Calculate the Laplacian score for a given dataset and kernel matrix.
     lnkbp_()
@@ -102,12 +98,6 @@ class LocalBiplot(): #Poner en CamelCase
         kernel calculations, and Laplacian Score computation.
     localbp_(X_)
           Perform a local biplot operation on the scaled data (currently commented out).
-    laplacian_score(X, K, tol=1e-10)
-        Calculate the Laplacian score for a given dataset and kernel matrix
-    GMD(X, H, Q, K)
-        Generalized Matrix Decomposition method (power method) for a given dataset and kernel matrices.
-    biplot_gmd_body(fit, index=None, names=None, sample_col='grey50', sample_pch=19, arrow_col='orange', arrow_cex=1)
-        Generate a GMD-biplot based on generalized matrix decomposition results.
     plot_lnkbp_(hue, c, figsize=(25, 10))
         Plot various visualizations, including scatter plots, kernel matrices, and feature relevance.
     affine_transformM(parameters, array_A)
@@ -233,9 +223,9 @@ class LocalBiplot(): #Poner en CamelCase
         self.X['P1'] = self.Z[:,0] #add red to pd
         self.X['P2'] = self.Z[:,1]
         # Step 5: Calculate kernel matrices for X scaled and Z
-        self.KX = self.krbf(self.X_) #kernel X samples
-        self.KXF = self.krbf(self.X_.T) #kernel X features
-        self.KZ = self.krbf(self.Z) # kernel Z samples
+        #self.KX = self.krbf(self.X_) #kernel X samples
+        # self.KXF = self.krbf(self.X_.T) #kernel X features
+        # self.KZ = self.krbf(self.Z) # kernel Z samples
         # Step 6: Calculate Laplacian scores for X and Z
         self.lsX = self.laplacian_score(self.X_,self.KX) #features KX
         self.lsZ = self.laplacian_score(self.X_,self.KZ) #features KZ
