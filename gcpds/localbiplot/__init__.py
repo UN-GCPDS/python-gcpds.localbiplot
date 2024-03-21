@@ -205,8 +205,8 @@ class LocalBiplot(): #Poner en CamelCase
 
     def LocalBiplot_(self):
         """
-        Process and analyze the data using a series of steps, including scaling, dimensionality reduction,
-        kernel calculations, and Laplacian score computation.
+        Process and analyze the data using a series of steps, including scaling and dimensionality reduction.
+        
 
         Returns:
         --------
@@ -220,15 +220,15 @@ class LocalBiplot(): #Poner en CamelCase
         # Step 3: Perform a local biplot operation on the scaled data
         #self.localbp_(self.X_)
         # Step 4: Add the reduced dimensions to the original data
-        self.X['P1'] = self.Z[:,0] #add red to pd
-        self.X['P2'] = self.Z[:,1]
+        #self.X['P1'] = self.Z[:,0] #add red to pd
+        #self.X['P2'] = self.Z[:,1]
         # Step 5: Calculate kernel matrices for X scaled and Z
         #self.KX = self.krbf(self.X_) #kernel X samples
         # self.KXF = self.krbf(self.X_.T) #kernel X features
         # self.KZ = self.krbf(self.Z) # kernel Z samples
         # Step 6: Calculate Laplacian scores for X and Z
-        self.lsX = self.laplacian_score(self.X_,self.KX) #features KX
-        self.lsZ = self.laplacian_score(self.X_,self.KZ) #features KZ
+        #self.lsX = self.laplacian_score(self.X_,self.KX) #features KX
+        #self.lsZ = self.laplacian_score(self.X_,self.KZ) #features KZ
 
         return self
 
