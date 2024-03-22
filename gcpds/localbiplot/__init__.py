@@ -536,7 +536,7 @@ class LocalBiplot(): #Poner en CamelCase
             print(f"Explained variance ratio by principal component: {explained_variance_ratio}")
 
             # Plot non-linear local-Biplot SVD
-            self.rice_.plot_transformed_clusters(ax1, self.Z[ind_], VA, cmap_[i])
+            self.plot_transformed_clusters(ax1, self.Z[ind_], VA, cmap_[i])
 
             # Plot correlation of input data
             sns.heatmap(np.abs(np.corrcoef(self.X_.T).round(3)),  ax=ax3[0, 0], vmin=0, vmax=1, cmap='Reds', cbar=False,
