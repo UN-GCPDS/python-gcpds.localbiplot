@@ -9,7 +9,7 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 setup(
     name="gcpds-localbiplot",
     version='0.1',
-    packages=["gcpds.localbiplot"],
+    packages=["gcpds", "gcpds.localbiplot"],
     author="Jenniffer Carolina Triana Martinez",
     author_email="jectrianama@unal.edu.co",
     maintainer="Jenniffer Carolina Triana Martinez",
