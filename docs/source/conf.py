@@ -34,4 +34,4 @@ exclude_patterns = ['_build', '**.ipynb_checkpoints']
 html_theme = 'alabaster'
 html_static_path = ['_static']
 autodoc_mock_imports = ["matplotlib", 'numpy', 'pandas', 'seaborn', 'sklearn', 'scipy']
-
+dunderlab_github_repository = "https://github.com/UN-GCPDS/python-gcpds.localbiplot"
