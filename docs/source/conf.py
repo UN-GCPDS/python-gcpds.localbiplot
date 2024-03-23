@@ -27,6 +27,9 @@ templates_path = ['_templates']
 exclude_patterns = ['_build', '**.ipynb_checkpoints']
 
 
+html_logo = '_static/localbip_logo.png'
+html_favicon = '_static/favicon.ico'
+
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
