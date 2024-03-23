@@ -28,8 +28,8 @@ local biplot
 #librerias a importar
 
 import os
-import warnings
-warnings.filterwarnings("ignore")
+#import warnings
+#warnings.filterwarnings("ignore")
 
 
 import numpy as np
