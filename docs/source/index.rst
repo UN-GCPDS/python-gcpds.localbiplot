@@ -11,6 +11,7 @@ Documentation Overview
    :name: mastertoc
 
    notebooks/01 - Manual del usuario
+   notebooks/01-module example
 
 
 
