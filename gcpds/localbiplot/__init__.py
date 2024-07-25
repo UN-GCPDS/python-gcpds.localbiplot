@@ -31,560 +31,373 @@ import os
 #import warnings
 #warnings.filterwarnings("ignore")
 
+import os
+import warnings
+warnings.filterwarnings("ignore")
+
 
 import numpy as np
-import matplotlib
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib.colors import Normalize
-
-import pandas as pd
-import seaborn as sns
-from seaborn import kdeplot
-
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from scipy.special import softmax
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
-from sklearn.cluster import DBSCAN
-
-from scipy.spatial.distance import cdist, squareform
-from scipy.stats import multivariate_normal
+from umap import UMAP
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import MinMaxScaler
 from scipy.optimize import minimize
-from scipy import interpolate
-
-#from adjustText import adjust_text
-
+import matplotlib.pyplot as plt
+import matplotlib as mpl
 
 
-# Objeto para guardar resultados:
-class GMDOutput:
-    pass
 
-#centering kernels
-class LocalBiplot(): #Poner en CamelCase
+class LocalBiplot():
+  """
+  A class to perform local biplot analysis using various dimensionality reduction techniques
+  and affine transformations.
 
+  Attributes:
+  -----------
+  redm : str
+      The dimensionality reduction method to use ('umap' or 'tsne').
+  affine_ : str
+      Type of affine transformation ('full' or 'rotation').
+  perplexity : str or int
+      Perplexity parameter for t-SNE.
+  min_dist : float
+      Minimum distance parameter for UMAP.
+
+  Methods:
+  --------
+  dim_red(X):
+      Performs dimensionality reduction on the input data X.
+  biplot2D(X, plot_=True, labels=None, loading_labels=None):
+      Creates a 2D PCA biplot of the input data X.
+  local_biplot2D(X, y, plot_=True, loading_labels=None):
+      Performs local biplot analysis on the input data X with labels y.
+  affine_transformation(params, points):
+      Applies an affine transformation to the input points using the given parameters.
+  objective_function(params, source_points, target_points):
+      Objective function to minimize the mean squared error between transformed source points and target points.
+  affine_transformation_obj(source_points, target_points, initial_guess=np.array([1, 1, 0, 0, 0, 0, 0])):
+      Optimizes the affine transformation parameters to match source points to target points.
+  plot_arrows(means_, points, head_width=0.025, color='b', linestyle='-'):
+      Plots arrows from means to points.
+  biplot_global(score, loading, rel_, axbiplot, axrel, mean_=None, labels=None, loading_labels=None, score_labels=None, bar_c='b'):
+      Creates a global biplot for the first two principal components.
+  """
+  def __init__(self,redm = 'umap',affine_='full',perplexity='auto',min_dist=0.75):
+    self.affine_ = affine_
+    if affine_ == 'rotation':
+      self.bounds = ((1,1),(1,1),(0,0),(0,0),(-np.pi,np.pi),(0,0),(0,0))
+    else:
+       self.bounds = ((None,None),(None,None),(None,None),(None,None),(-np.pi,np.pi),(None,None),(None,None))
+
+    self.perplexity = perplexity
+    self.min_dist = min_dist
+    self.redm = redm
+
+  def dim_red(self,X):
     """
-    Object for data analysis using linear and non-linear Biplots obtained by
-    SVD decomposition and a Generalized SVD decomposition .
+    Performs dimensionality reduction on the input data X using UMAP or t-SNE.
 
-    This class implements a set of functions for data analysis, including
-    scaling, dimensionality reduction, kernel calculation, and biplots
-    computation and display.
+    Parameters:
+    -----------
+    X : array-like, shape (n_samples, n_features)
+        The input data.
 
-    Attributes
-    ----------
-    X:  pd.dataframe
-        Input matrix of shape N x P.
-    labels: array-like, optional
-        Labels for the samples (default is None).
-    perplexity: int or None, optional
-        Perplexity for t-SNE (default is calculated as the square root of N).
-    red: {'tsne', 'pca', 'umap'}, default is 'tsne'
-        Dimensionality reduction method ('tsne' by default).
-    sca: {'minmax'}, default is 'minmax'
-        Data scaling method ('minmax' by default).
-    random_seed: int, default is 123
-        Seed for result reproducibility.
-
-    Methods
-    -------
-    data_scaler(X, feature_range=(0, 1))
-        Scale the data using MinMaxScaler if 'sca' is set to 'minmax'.
-    reduce_dimensions(X)
-        Reduce the dimensionality of the data using t-SNE, PCA, or UMAP.
-    krbf(X)
-        Calculate the Radial Basis Function (RBF) kernel matrix for the input data.
-    center_kernel(K)
-        Center a given kernel matrix using the Kernel Centering method.
-    laplacian_score(X, K, tol=1e-10)
-        Calculate the Laplacian score for a given dataset and kernel matrix.
-    lnkbp_()
-        Process and analyze the data through steps such as scaling, dimensionality reduction,
-        kernel calculations, and Laplacian Score computation.
-    localbp_(X_)
-          Perform a local biplot operation on the scaled data (currently commented out).
-    laplacian_score(X, K, tol=1e-10)
-        Calculate the Laplacian score for a given dataset and kernel matrix
-    GMD(X, H, Q, K)
-        Generalized Matrix Decomposition method (power method) for a given dataset and kernel matrices.
-    biplot_gmd_body(fit, index=None, names=None, sample_col='grey50', sample_pch=19, arrow_col='orange', arrow_cex=1)
-        Generate a GMD-biplot based on generalized matrix decomposition results.
-    plot_lnkbp_(hue, c, figsize=(25, 10))
-        Plot various visualizations, including scatter plots, kernel matrices, and feature relevance.
-    affine_transformM(parameters, array_A)
-        Apply an affine transformation to the input array using the given parameters.
-    registration_errorM(parameters, array_A, array_B)
-        Compute the registration error between two sets of 2D points after applying an affine transformation.
-
-
-    ...
-
+    Returns:
+    --------
+    array-like, shape (n_samples, 2)
+        The reduced dimensionality data.
     """
-    def __init__(self, X, labels = None, perplexity = None, red = 'tsne', sca = 'minmax',random_seed=123):
-          self.X = X.copy()
-          self.columns_= self.X.columns
-          self.labels = labels
-          if perplexity==None:
-            perplexity = round(np.sqrt(X.shape[0]))
-          self.perplexity = perplexity
-          self.random_seed = random_seed
-          self.red = red
-          self.sca = sca
-
-
-
-
-
-    def data_scaler(self,X,feature_range=(0,1)):
-        """
-        this method scale the input data using MinMaxScaler if 'sca' is set to 'minmax'.
-
-        Parameters
-        ----------
-        - X (array-like): Input matrix of shape N x P. Input data to be scaled.
-        - feature_range (tuple, optional): Tuple specifying the minimum and maximum values of the feature range.
-          Defaults to (0, 1).
-
-        Returns
-        ----------
-        - An N x P scaled data matrix.
-        """
-
-        # Check if scaling method is 'minmax'
-        if self.sca == 'minmax':
-          # Create MinMaxScaler instance with specified feature_range
-          sca_ = MinMaxScaler(feature_range=feature_range)
-          # Fit and transform the data using the scaler
-        return sca_.fit_transform(X)
-
-
-    def reduce_dimensions(self, X):
-        """
-        Reduce the dimensionality of the input data using t-SNE, PCA, or UMAP.
-
-        Parameters:
-        -----------
-        - X (array-like): Input matrix of shape N x P. Input data to be dimensionality reduced.
-
-        Returns:
-        --------
-        - An n x 2 array-like dimensionality reduced data.
-        """
-
-        # Choose the dimensionality reduction method
-        if self.red == 'tsne':
-          self.reduce_dimensions = TSNE(n_components = 2, perplexity = self.perplexity, random_state=self.random_seed)
-        elif self.red == 'pca':
-          self.reduce_dimensions = PCA(n_components = 2, random_state=self.random_seed)
-        # Uncomment the following lines if you use UMAP
-        # elif self.red == 'umap' :
-        #   self.reduce_dimension = UMAP(n_components = 2, n_neighbors = round(np.sqrt(X.shape[0])),min_dist =0.9,random_state=self.random_seed)
-        else:
-          # Use t-SNE as a default if the specified method is not recognized
-          self.reduce_dimensions = TSNE(n_components = 2, perplexity = self.perplexity, random_state=self.random_seed)
-        # Return the dimensionality reduced data after scaling
-        return self.data_scaler(self.reduce_dimensions.fit_transform(X))
-
-
-
-
-
-   
-    def LocalBiplot_(self):
-        """
-        Process and analyze the data using a series of steps, including scaling, dimensionality reduction,
-        kernel calculations, and Laplacian score computation.
-
-        Returns:
-        --------
-        - YourClass instance: The modified instance with processed and analyzed data.
-        """
-
-        # Step 1: Scale the input data
-        self.X_ = self.data_scaler(self.X) #scaler X
-        # Step 2: Reduce dimensions using a chosen method
-        self.Z = self.reduce_dimensions(self.X_) #red
-        # Step 3: Perform a local biplot operation on the scaled data
-        #self.localbp_(self.X_)
-        # Step 4: Add the reduced dimensions to the original data
-        self.X['P1'] = self.Z[:,0] #add red to pd
-        self.X['P2'] = self.Z[:,1]
-        # Step 5: Calculate kernel matrices for X scaled and Z
-        
-        return self
-
-   
-
-
-
-    def plot_transformed_clusters(self, ax, ZcA, VA, cmap,  arrow_size = 0.05 ):
-        """
-        Plot the non-linear local-Biplot SVD.
-
-        Parameters:
-        ----------
-        - ax (matplotlib.axes._subplots.AxesSubplot): Axes on which to plot.
-        - ZcA (numpy.ndarray): Transformed points of the cluster.
-        - VA (numpy.ndarray): Transformed vector arrows of the cluster.
-        - cmap: Color map for the scatter plot.
-        - arrow_size
-
-        Returns:
-        --------
-        None
-        """
-
-        texts = []
-        # Calculate mean of transformed points
-        ZcA_mean = ZcA.mean(axis=0)
-
-
-
-        # Set arrow size and color
-
-
-
-        # Scatter plot of transformed points
-        ax.scatter(ZcA[:, 0], ZcA[:, 1], alpha=0.7, c=cmap)
-
-        # Extract arrow coordinates from transformed vector arrows
-        VA = VA /np.linalg.norm(VA,axis=0)
-
-        arrow_x = VA[:, 0]
-        arrow_y = VA[:, 1]
-
-        # Calculate maximum values for scaling
-        max_xlab = np.max(np.abs(ZcA[:, 0]))
-        max_ylab = np.max(np.abs(ZcA[:, 1]))
-        max_xarrow = np.max(np.abs(arrow_x))
-        max_yarrow = np.max(np.abs(arrow_y))
-        xratio = max_xarrow / max_xlab
-        yratio = max_yarrow / max_ylab
-
-        # Set axis points for arrow scaling
-        xaxp = np.linspace(-max_xlab, max_xlab, num=5)
-        yaxp = np.linspace(-max_ylab, max_ylab, num=5)
-
-        xlab_arrow = xaxp * xratio
-        ylab_arrow = yaxp * yratio
-
-        # Calculate mean of transformed points for arrow origin
-        ZcA_mean = ZcA.mean(axis=0)
-
-        # Plot vector arrows and labels
-        for k in range(VA.shape[0]):
-            ax.arrow(ZcA_mean[0], ZcA_mean[1], (arrow_x[k] / xratio)*0.5, (arrow_y[k] / yratio)*0.5,
-                     head_width= arrow_size, head_length= arrow_size, color='gray', linewidth=1.1)
-            ax.text(((arrow_x[k]) / xratio)*0.5 + 0.03 + ZcA_mean[0], (arrow_y[k] / yratio)*0.5 + ZcA_mean[1]+ 0.01,
-                     s='f' + str(k + 1), fontsize=16, color='black')
-
-        
-        #ax.set_xlim((-1,1))
-        ax.set_ylim((-1,1.4))
-        # Set plot title and axis labels
-       # ax.set_title('Non-linear local-biplot SVD', fontsize=20)
-        ax.set_xlabel('Dimension 1', fontsize=20)
-        #ax.set_ylabel('PC 2', fontsize=20)
-        ax.tick_params(axis='both', labelsize=20)
-        #ax.set_yticks([])
-        # Remove the upper and right spines
-        #ax.spines['top'].set_visible(False)
-        #ax.spines['right'].set_visible(False)
-
-        # Display grid
-        #ax.grid(True)
-
-
-
-    def affine_transformM(self, parameters, array_A):
-        """
-          Apply an affine transformation to the input array using the given parameters.
-
-          Parameters:
-          ----------
-          - parameters (array-like): Affine transformation parameters.
-              - parameters[0]: Scaling factor
-              - parameters[1]: Rotation angle (in radians)
-              - parameters[2:]: Translation along x and y axes
-          - array_A (array-like): Input array to be transformed.
-
-          Returns:
-          --------
-          - array-like: Transformed array after applying the affine transformation.
-
-          """
-        # Apply affine transformation to array_A with parameters
-        N = array_A.shape[0] #N x 2 array
-        scale = parameters[0]
-        rotation = parameters[1]
-        translation = parameters[2:]
-        transformation_matrix = np.array([
-            [scale * np.cos(rotation), -scale * np.sin(rotation), translation[0]],
-            [scale * np.sin(rotation), scale * np.cos(rotation), translation[1]],
-        ]) # 2 x 3 transformation matrix
-        transformed_A = np.dot(transformation_matrix, np.c_[array_A,np.ones((N,1))].T)
-        return transformed_A.T
-
-    def registration_errorM(self, parameters, array_A, array_B): # N x 2 arrays
-        """
-        Compute the registration error between two sets of 2D points after applying an affine transformation.
-
-        Parameters:
-        ----------
-
-        - parameters (array-like): Affine transformation parameters.
-        - array_A (array-like): Source set of 2D points (N x 2 array).
-        - array_B (array-like): Target set of 2D points (N x 2 array).
-
-        Returns:
-        ----------
-
-        - float: Registration error, calculated as the Frobenius norm of the difference
-                between the transformed source points and the target points.
-        """
-        # Compute the registration error (sum of squared differences)
-        transformed_A = self.affine_transformM(parameters, array_A)
-        N = array_A.shape[0]
-        error = (1/N)*np.linalg.norm(transformed_A - array_B,'fro')
-        return error
-
-
-
-    def optimize_affine_transform(self, Zc, B, Sc, ind_):
-        """
-        Optimize the parameters for the affine transformation.
-
-        Parameters:
-        ----------
-        - Zc (array-like): Cluster data points (N x 2 array).
-        - B (array-like): Matrix of vectors (2 x P) representing the original basis.
-        - Sc (array-like): Singular values of the original basis.
-        - ind_ (array-like): Boolean array indicating the indices of the cluster.
-
-        Returns:
-        --------
-        - Tuple: A tuple containing the optimized parameters and the transformed cluster points.
-
-        Notes:
-        ------
-        This function performs optimization to find the best affine transformation parameters
-        using the Nelder-Mead method. It then applies the optimized transformation to the cluster points.
-        """
-        # Initial guess for optimization parameters (scale, rotation, translation)
-        initial_parameters = np.array([1.0, 0.0, 0.0, 0.0])
-
-        # Perform the optimization to find the best affine transformation
-        result = minimize(self.registration_errorM, initial_parameters,
-                          args=(Zc, self.Z[ind_]), method='Nelder-Mead')
-
-        # Get the optimized parameters
-        optimized_parameters = result.x
-
-        # Apply the optimized transformation to the cluster points and vectors
-        Zc_transformed = self.affine_transformM(optimized_parameters, Zc)
-        B_transformed = self.affine_transformM(optimized_parameters, B)
-
-
-
-        return optimized_parameters, Zc_transformed, B_transformed
-
-
-    def clustering(self, Z, eps_=None, per_=5): #N x 2 array
-        """
-        Perform clustering on the given 2D data using DBSCAN algorithm.
-
-        Parameters:
-        ----------
-        - Z (array-like): N x 2 list | np.ndarray  representing the data points.
-        - eps_ (float, optional): The maximum distance between two samples for one to be considered
-          as in the neighborhood of the other. Defaults to None.
-        - per_ (float, optional): The percentile value used to set the `eps` parameter if it is not provided.
-          Defaults to 5.
-
-        Returns:
-        --------
-        - list | np.ndarray : An array of cluster labels assigned by the DBSCAN algorithm.
-
-        Notes:
-        ------
-        If `eps_` is not provided, it is calculated as a percentile of the pairwise Euclidean distances
-        between points in the input data `Z`.
-
-        DBSCAN (Density-Based Spatial Clustering of Applications with Noise) is a clustering algorithm
-        that groups together data points that are close to each other and marks outliers as noise.
-
-        """
-        if eps_ == None:
-          eps_=np.percentile(squareform(cdist(Z, Z)),q=per_)
-        np.random.seed(123)
-        clus = DBSCAN(eps=eps_)
-        clus.fit(Z)
-        return clus.labels_
-
-    def pca_by_SVD(self, X):
-        """
-        Perform SVD decomposition.
-
-        Parameters:
-        ----------
-        - X: list | np.ndarray
-          Input data N x P.
-
-        Returns:
-        --------
-
-        -  U, S, VT, S_, A, B
-
-        Details:
-        --------
-
-        Singular Value Decomposition
-
-        (utilizar ..math:: en lugar de $$)
-        $\mathbf{X} = \mathbf{U}\mathbf{S}\mathbf{V}^\top = \mathbf{U}\mathbf{S}^{0.5}\mathbf{S}^{0.5}\mathbf{V}^\top = \mathbf{A}\mathbf{B}^\top$
-
-        $\mathbf{X}\in \mathbb{R}^{N \times P}$
-
-        $\mathbf{U}\in \mathbb{R}^{N \times M}$
-
-        $\mathbf{V}\in \mathbb{R}^{P \times M}$
-
-        $\mathbf{S}\in \mathbb{R}^{M \times M}$
-
-        $\mathbf{A} =  \mathbf{U}\mathbf{S}^{0.5} \in \mathbb{R}^{N \times M} $
-
-        $\mathbf{B} = \mathbf{V}\mathbf{S}^{0.5} \in \mathbb{R}^{P \times M} $
-
-        $M = min(N,P)$
-        """
-        #centering data
-        X -= X.mean()
-
-
-
-        # SVD decomposition
-
-        U, S, VT = np.linalg.svd(X)
-
-        # Use the full set of singular values
-        S_ = S
-        A = U[:, :S_.shape[0]].dot((np.diag(S_))**(0.5))  # samples-based basis
-        B = VT.T[:, :S_.shape[0]].dot((np.diag(S_))**(0.5)) # features-based basis
-
-
-        Zc = X.dot(VT.T[:,:2]) # x x V^T
-
-
-        # PCA projection from SVD -> without standard scaler or min-max scaler
-
-
-        return U, S, VT, S_, A, B, Zc
-    
-    def compute_variance_ratio(self,Sc):
+    if self.perplexity == 'auto':
+      self.perplexity = np.round(0.5*np.sqrt(X.shape[0]))
+    if self.redm == 'umap':
+      self.red_ = UMAP(n_components=2,n_neighbors=int(self.perplexity),random_state=42, min_dist=self.min_dist)
+    else:
+      self.red_ = TSNE(n_components=2,perplexity=self.perplexity,random_state=42, init='pca')
+    return MinMaxScaler(feature_range=(-1, 1)).fit_transform(self.red_.fit_transform(MinMaxScaler(feature_range=(-1, 1)).fit_transform(X)))
+
+  def biplot2D(self,X,plot_=True,labels=None,loading_labels=None):
       """
-      Compute eigenvalues, total variance, and explained variance ratio by principal component.
+      Creates a 2D PCA biplot of the input data X.
 
       Parameters:
-      - Sc: Array of singular values from SVD.
+      -----------
+      X : array-like, shape (n_samples, n_features)
+          The input data.
+      plot_ : bool, optional, default=True
+          Whether to plot the biplot.
+      labels : array-like, shape (n_samples,), optional
+          Labels for the data points.
+      loading_labels : list of str, optional
+          Labels for the loadings.
 
       Returns:
-      - explained_variance_ratio: Array of explained variance ratios.
+      --------
+      loading : array-like, shape (n_features, 2)
+          The loadings for the first two principal components.
+      rel_ : array-like, shape (n_features,)
+          The relevance of each loading.
+      score : array-like, shape (n_samples, 2)
+          The PCA scores for the first two principal components.
       """
-      # Compute eigenvalues
-      eigenvalues = Sc ** 2
-      total_variance = np.sum(eigenvalues)
-      explained_variance_ratio = np.round((eigenvalues / total_variance) * 100, 2)
+      # Example usage:
+      # Assuming pca is your PCA object and X is the data you've fitted PCA on:
+      pca = PCA(random_state = 42)
+      score = MinMaxScaler(feature_range=(-1, 1)).fit_transform(pca.fit_transform(MinMaxScaler(feature_range=(-1, 1)).fit_transform(X)))
+      loading = pca.components_.T
+      rel_ = softmax((abs(loading.dot(np.diag(pca.explained_variance_)))).sum(axis=1))
 
-      return explained_variance_ratio
-        
-
-
-    def get_localbp_(self, tar_, Ck, databp):
-
-        # Set colormap
-        cmap = plt.cm.get_cmap('Paired')
-        # Create colormap for clusters
-        cmap_ = cmap(np.linspace(0, 1, Ck))
-        fontsize = 20
-
-        U = []
-        Vh = []
-        S = []
-
-        # Create subplots
-        fig3, ax3 = plt.subplots(2, Ck + 1, figsize=(12, 7))
-        plt.subplots_adjust(wspace=0.05, hspace=0.1)
-        fig1, ax1 = plt.subplots(1, 1, figsize=(8, 8))
-
-        # Iterate over clusters
-        for i, v in enumerate(np.unique(tar_)):
-            ind_ = tar_ == v
-
-            # Perform PCA by SVD
-            Uc, Sc, Vhc, S_, A, B, Zc = self.pca_by_SVD(self.X_[ind_])
-
-            # Store results
-            U.append(Uc)
-            S.append(Sc)
-            Vh.append(Vhc[:2, :].T)
-
-            # Compute affine transform
-            optimized_params, ZcA, VA = self.optimize_affine_transform(Zc, (Vhc[:2, :].T).dot(np.diag(Sc[:2])**(0.5)),
-                                                                        Sc, ind_)
-
-            # Compute eigenvalues and explained variance ratio
-            explained_variance_ratio = self.compute_variance_ratio(Sc)
-            print(f"Explained variance ratio by principal component: {explained_variance_ratio}")
-
-            # Plot non-linear local-Biplot SVD
-            self.plot_transformed_clusters(ax1, self.Z[ind_], VA, cmap_[i])
-
-            # Plot correlation of input data
-            sns.heatmap(np.abs(np.corrcoef(self.X_.T).round(3)),  ax=ax3[0, 0], vmin=0, vmax=1, cmap='Reds', cbar=False,
-                        linecolor="w", linewidths=1, xticklabels=databp.columns, yticklabels=databp.columns)
-            ax3[0, 0].set_ylabel('Input data', fontsize=fontsize)
-            ax3[0, 0].tick_params(axis='y', labelsize=fontsize)
-            ax3[0, 0].tick_params(axis='x', labelsize=fontsize)
-            ax3[1, 0].axis("off")
-
-            # Plot correlation biplot matrix B
-            sns.heatmap(np.abs(np.corrcoef(Vhc.T[:, :Sc.shape[0]].dot((np.diag(Sc))**(0.5))).round(3)),  ax=ax3[1, i + 1],
-                        vmin=0, vmax=1, robust=True, cmap='Reds', cbar=False, linecolor="w", linewidths=1,
-                        yticklabels=databp.columns)
-
-            # Plot correlation of input data matrix
-            sns.heatmap(np.abs(np.corrcoef(self.X_[ind_].T).round(3)), vmin=0, vmax=1,  ax=ax3[0, i + 1], cmap='Reds',
-                        cbar=False, linecolor="w", linewidths=1, xticklabels=False)
-            ax3[0, i + 1].yaxis.set_ticklabels([])
-            ax3[0, i + 1].set_title('Cluster ' + str(i + 1), fontsize=fontsize, color=cmap_[i])
-            ax3[1, i + 1].set_xticks([])
-            ax3[1, i + 1].yaxis.set_ticklabels([])
-
-            if i == 1:
-                ax3[1, i].set_ylabel('NLLBiplot', fontsize=fontsize)
-                ax3[1, 1].tick_params(axis='x', labelsize=fontsize)
-                ax3[1, 1].tick_params(axis='y', labelsize=fontsize)
-                ax3[1, 1].xaxis.set_ticks(np.arange(len(databp.columns))+0.5)
-                ax3[1, 1].xaxis.set_ticklabels(databp.columns)
-                ax3[1, 1].yaxis.set_ticks(np.arange(len(databp.columns))+0.5)
-                ax3[1, 1].yaxis.set_ticklabels(databp.columns)
-
-        # Add colorbar for last heatmap
-        cbar_ax = fig3.add_axes([0.93, 0.15, 0.015, 0.68])  
-        cbar_ax.tick_params(labelsize=fontsize)
-        norm = Normalize(vmin=0, vmax=1)  # Customize normalization if needed
-        sm = plt.cm.ScalarMappable(cmap='Reds', norm=norm)
-        sm.set_array([])
-        fig3.colorbar(sm, cax=cbar_ax)
-        plt.tight_layout()
-        fig3.savefig('correlations_projections_and_clusters.pdf', bbox_inches='tight')
-        fig1.savefig('local-biplot_SVD.pdf', bbox_inches='tight')
+      if plot_:
+        fig,ax = plt.subplots(1,2,figsize=(20, 7))
+        self.biplot_global(score, loading, rel_,labels=labels, loading_labels=loading_labels,axbiplot=ax[0],axrel=ax[1])
+        ax[0].set_title('2D PCA Global Biplot')
         plt.show()
 
-    
+      return loading[:,:2],rel_,score[:,:2]
 
-        return
+
+
+  def local_biplot2D(self,X,y,plot_=True,loading_labels=None):
+    """
+    Performs local biplot analysis on the input data X with labels y.
+
+    Parameters:
+    -----------
+    X : array-like, shape (n_samples, n_features)
+        The input data.
+    y : array-like, shape (n_samples,) or int
+        The labels for the data points, or the number of clusters for k-means clustering.
+    plot_ : bool, optional, default=True
+        Whether to plot the biplot.
+    loading_labels : list of str, optional
+        Labels for the loadings.
+
+    Returns:
+    --------
+    None
+    """
+
+    print('Dimensionality Reduction...')
+    X_ = MinMaxScaler(feature_range=(-1, 1)).fit_transform(X)#minmaxscaler between -1 +1
+    Z = self.dim_red(X_) #Nonlinear Dimensionality Reduction
+    if type(y) == int: #no labels -> clustering
+       print('Performing clustering...')
+       self.y = KMeans(n_clusters=y,random_state=42).fit_predict(Z)
+       print(f'{self.y.shape} - {np.unique(self.y)}')
+    else:
+      self.y = y
+
+    C_ = len(np.unique(self.y))
+    Zl = np.zeros(Z.shape)
+    loading_ = np.zeros((C_,X.shape[1],2))
+    loading_r = np.zeros((C_,X.shape[1],2))
+    rel_ = np.zeros((C_,X.shape[1]))
+    opt_params = np.zeros((C_,7)) #affine transformation parameters
+
+    if plot_:
+      fig,ax = plt.subplots(1,2,figsize=(20, 7))
+      cmap_ = mpl.colormaps['jet'].resampled(C_)
+      cmap_ = cmap_(range(C_))
+
+    print('Affine Transformation...')
+    for c in np.unique(self.y):
+      print(f'{c+1}/{C_}')
+      loading_[c],rel_[c],Zl[self.y==c] = self.biplot2D(X_[self.y==c],plot_=False) #pca biplot on c-th group
+      Zl[self.y==c], opt_params[c],_ = self.affine_transformation_obj(Zl[self.y==c],Z[self.y==c]) #affine transformation training on c-th group
+      loading_r[c] = self.affine_transformation(opt_params[c],loading_[c]) #transform loadings on c-th group
+
+      if plot_:
+        mean_ = np.repeat(Z[self.y==c].mean(axis=0).reshape(1,-1),(self.y==c).sum(),axis=0)
+        print(f'plot {c+1}-th group')
+
+        self.biplot_global(Z[self.y==c], loading_r[c], rel_[c],labels=cmap_[c],mean_ = mean_, loading_labels=loading_labels,axbiplot=ax[0],axrel=ax[1],bar_c=cmap_[c])
+    ax[0].set_xlabel('Emb. 1')
+    ax[0].set_ylabel('Emb. 2')
+    ax[0].set_title(f'2D Local Biplot ({self.redm})')
+    plt.show()
+    self.loadings_l = loading_r
+    self.Zr = Z
+    self.rel_l = rel_
+    return
+
+
+  def affine_transformation(self,params,points):
+    """
+    Applies an affine transformation to the input points using the given parameters.
+
+    Parameters:
+    -----------
+    params : array-like, shape (7,)
+        The parameters for the affine transformation.
+    points : array-like, shape (n_samples, 2)
+        The points to transform.
+
+    Returns:
+    --------
+    array-like, shape (n_samples, 2)
+        The transformed points.
+    """
+
+    #points \in N x2
+    #sx,sy,hx,hy,theta,tx,ty = params[0],params[1],params[2],params[3],params[4],params[5],params[6]
+    S = np.array([[params[0],0],[0,params[1]]])
+    H = np.array([[params[2],1],[1,params[3]]])
+    R = np.array([[np.cos(params[4]),-np.sin(params[4])],[np.sin(params[4]),np.cos(params[4])]])
+    M = R.dot(H).dot(S)
+    tr_ = np.array([params[5],params[6]])
+    return (M.dot(points.T)+np.repeat(tr_.reshape(-1,1), points.shape[0], axis=1)).T
+
+  def objective_function(self, params, source_points, target_points):
+
+      """
+      The objective function to minimize: the mean squared error between the
+      transformed source points and the target points.
+
+      Parameters:
+      -----------
+      - params: Parameters of the affine transformation.
+      - source_points: Source points to transform. N x 2
+      - target_points: Target points to match. N x 2
+
+      Returns:
+      --------
+      - Mean squared error between transformed source points and target points.
+      """
+
+      transformed_points = self.affine_transformation(params, source_points)
+      return np.mean(np.sum((transformed_points - target_points)**2, axis=1))
+
+
+  def affine_transformation_obj(self, source_points,target_points,initial_guess = np.array([1, 1, 0, 0, 0, 0,0])):
+      """
+      Optimizes the affine transformation parameters to match source points to target points.
+
+      Parameters:
+      -----------
+      source_points : array-like, shape (n_samples, 2)
+          The source points to transform.
+      target_points : array-like, shape (n_samples, 2)
+          The target points to match.
+      initial_guess : array-like, shape (7,), optional
+          Initial guess for the affine transformation parameters.
+
+      Returns:
+      --------
+      array-like, shape (n_samples, 2)
+          The transformed source points.
+      array-like, shape (7,)
+          The optimized affine transformation parameters.
+      scipy.optimize.OptimizeResult
+          The result of the optimization.
+      """
+      #source_points, target_points N x 2
+      # Initial guess for the parameters (identity matrix and zero translation)
+      # Perform optimization
+      result = minimize(self.objective_function, x0=initial_guess, bounds=self.bounds, args=(source_points, target_points))
+
+      # Extract the optimized transformation matrix and translation vector
+      optimized_params = result.x
+      transformed_points = self.affine_transformation(optimized_params,source_points)
+      return transformed_points, optimized_params, result
+
+  def plot_arrows(self,means_,points,head_width=0.025,color='b',linestyle ='-'):
+      """
+      Plots arrows from means to points.
+
+      Parameters:
+      -----------
+      means_ : array-like, shape (n_samples, 2)
+          The starting points of the arrows.
+      points : array-like, shape (n_samples, 2)
+          The ending points of the arrows.
+      head_width : float, optional
+          The width of the arrow heads.
+      color : str, optional
+          The color of the arrows.
+      linestyle : str, optional
+          The line style of the arrows.
+
+      Returns:
+      --------
+      None
+      """
+      N,P = points.shape
+
+      for n in range(N):
+        plt.arrow(means_[n,0],means_[n,1],points[n,0],points[n,1],head_width=head_width,color=color,linestyle=linestyle)
+      return
+
+  def biplot_global(self,score, loading, rel_,axbiplot,axrel,mean_ = None,labels=None, loading_labels=None, score_labels=None,bar_c='b'):
+    """
+    Creates a global biplot for the first two principal components.
+
+    Parameters:
+    -----------
+    score : array-like, shape (n_samples, 2)
+        The PCA scores for the first two principal components.
+    loading : array-like, shape (n_features, 2)
+        The loadings for the first two principal components.
+    rel_ : array-like, shape (n_features,)
+        The relevance of each loading.
+    axbiplot : matplotlib.axes.Axes
+        The axes for the biplot.
+    axrel : matplotlib.axes.Axes
+        The axes for the relevance plot.
+    mean_ : array-like, shape (n_samples, 2), optional
+        The mean values for the data points.
+    labels : array-like, shape (n_samples,), optional
+        The labels for the data points.
+    loading_labels : list of str, optional
+        The labels for the loadings.
+    score_labels : list of str, optional
+        The labels for the scores.
+    bar_c : str, optional
+        The color of the relevance bars.
+
+    Returns:
+    --------
+    None
+    """
+
+    xs = score[:, 0]
+    ys = score[:, 1]
+    n = loading.shape[0]
+
+    if mean_ is None:
+      mean_ = np.zeros((n,2))
+
+    # Plot scores
+    if labels is not None:
+      axbiplot.scatter(xs, ys, alpha=0.5,c=labels)
+    else:
+      axbiplot.scatter(xs, ys, alpha=0.5)
+
+    if score_labels is not None:
+        for i, txt in enumerate(score_labels):
+            axbiplot.annotate(txt, (xs[i], ys[i]), fontsize=8)
+
+    # Plot loading vectors
+    for i in range(n):
+
+        axbiplot.arrow(mean_[i,0], mean_[i,1], loading[i, 0]*max(abs(xs)), loading[i, 1]*max(abs(ys)),
+                      color='r', alpha=0.5, head_width=0.025, head_length=0.05)
+        if loading_labels is not None:
+            axbiplot.text(mean_[i,0]+loading[i, 0]*max(abs(xs))*1.15, mean_[i,1]+loading[i, 1]*max(abs(ys))*1.15,
+                     loading_labels[i], color='g', ha='center', va='center')
+
+    axbiplot.set_xlabel("PC1")
+    axbiplot.set_ylabel("PC2")
+
+
+    axrel.bar(np.arange(1,n+1),rel_,color=bar_c)
+    axrel.set_xticks(np.arange(1,n+1),loading_labels,rotation=90)
+    axrel.set_ylabel("Normalized Relevance")
+    #plt.show()
+
+    return
+
 
 if __name__ == "__main__":
-    rice_ = LocalBiplot(databp,labels= None,perplexity=None,red = 'tsne') #class instance
+    rice_ = LocalBiplot(affine_='rotation',redm='umap') #class instance
     rice_.LocalBiplot_()
