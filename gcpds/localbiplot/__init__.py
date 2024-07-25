@@ -6,6 +6,15 @@ local biplot
 ============
 """
 
+#pip install umap-learn
+libraries_to_install = {'umap-learn': 'umap'}
+
+for library, alias in libraries_to_install.items():
+    try:
+        exec(f"import {alias}")
+    except ImportError:
+        !pip install {library} --quiet
+
 
 # def greet(name):
 #     """
