@@ -6,3 +6,4 @@ nbsphinx
 sphinxcontrib-bibtex
 pygments
 dunderlab-docs
+umap-learn 0.5.6
