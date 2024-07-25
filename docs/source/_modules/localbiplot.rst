@@ -1,5 +1,5 @@
-localbiplot package
-===================
+
+
 
 .. automodule:: localbiplot
    :members:
