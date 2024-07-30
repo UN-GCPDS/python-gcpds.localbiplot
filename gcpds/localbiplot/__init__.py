@@ -156,27 +156,7 @@ class LocalBiplot():
 
       return loading[:,:2],rel_,score[:,:2]
 
-
-
-  def local_biplot2D(self,X,y,plot_=True,loading_labels=None):
-    """
-    Performs local biplot analysis on the input data X with labels y.
-
-    Parameters:
-    -----------
-    X : array-like, shape (n_samples, n_features)
-        The input data.
-    y : array-like, shape (n_samples,) or int
-        The labels for the data points, or the number of clusters for k-means clustering.
-    plot_ : bool, optional, default=True
-        Whether to plot the biplot.
-    loading_labels : list of str, optional
-        Labels for the loadings.
-
-    Returns:
-    --------
-    None
-    """
+  def local_biplot2D(self,X,y,plot_=True,corrplot_=True,loading_labels=None, filename=None, nval= None):
 
     print('Dimensionality Reduction...')
     X_ = MinMaxScaler(feature_range=(-1, 1)).fit_transform(X)#minmaxscaler between -1 +1
@@ -193,33 +173,156 @@ class LocalBiplot():
     loading_ = np.zeros((C_,X.shape[1],2))
     loading_r = np.zeros((C_,X.shape[1],2))
     rel_ = np.zeros((C_,X.shape[1]))
-    opt_params = np.zeros((C_,7)) #affine transformation parameters
+    opt_params = np.zeros((C_,7)) #affine transformation parameters se tiene un arreglo de parametros para cada cluster
 
     if plot_:
       fig,ax = plt.subplots(1,2,figsize=(20, 7))
       cmap_ = mpl.colormaps['jet'].resampled(C_)
       cmap_ = cmap_(range(C_))
 
+    if corrplot_:
+      fontsize = 8
+      fig3, ax3  = plt.subplots(2, C_+1, figsize=(20, 8), sharey ="all")
+      plt.subplots_adjust(wspace= 0.05, hspace= 0.1)
+    # Add colorbar for last heatmap
+      cbar_ax = fig3.add_axes([0.93, 0.15, 0.015, 0.68])
+      cbar_ax.tick_params(labelsize=fontsize)
+      norm = Normalize(vmin=0, vmax=1)  # Customize normalization if needed
+      sm = plt.cm.ScalarMappable(cmap='Reds', norm=norm)
+      sm.set_array([])
+      fig3.colorbar(sm, cax=cbar_ax)
+     # self.save_fig("correlation_"+ filename, fig=fig3, tight_layout=True, fig_extension="pdf", resolution=300)
+
     print('Affine Transformation...')
     for c in np.unique(self.y):
       print(f'{c+1}/{C_}')
+      print(X_[self.y==c].shape)
       loading_[c],rel_[c],Zl[self.y==c] = self.biplot2D(X_[self.y==c],plot_=False) #pca biplot on c-th group
       Zl[self.y==c], opt_params[c],_ = self.affine_transformation_obj(Zl[self.y==c],Z[self.y==c]) #affine transformation training on c-th group
       loading_r[c] = self.affine_transformation(opt_params[c],loading_[c]) #transform loadings on c-th group
+      #loading1_,rel1_,Zl1 = self.biplot2D(X_[self.y==c],plot_=False, all=True)
+      #print(loading1_)
+
+     # rel_[c] = softmax((abs(loading_r[c].dot(np.diag(explained_variance_)))).sum(axis=1)) # se calcula la relevancia de cada variable usando una softmax
+
+      if corrplot_:
+
+          # Plot correlation of input data
+            sns.heatmap(np.abs(np.corrcoef(X_.T).round(3)),  ax=ax3[0, 0], vmin=0, vmax=1, cmap='Reds', cbar=False,
+                        linecolor="w", linewidths=1, xticklabels=loading_labels, yticklabels=loading_labels)
+            ax3[0, 0].set_ylabel('Input data', fontsize=12)
+            ax3[0, 0].tick_params(axis='y', labelsize=fontsize)
+            ax3[0, 0].tick_params(axis='x', labelsize=fontsize)
+            ax3[1, 0].axis("off")
+
+            # Plot correlation biplot matrix B
+            sns.heatmap(np.abs(self.nor_correlation(loading_r[c])),  ax=ax3[1, c + 1],  # np.abs(loading_[c].dot(loading_[c].T))
+                        vmin=0, vmax=1, robust=True, cmap='Reds', cbar=False, linecolor="w", linewidths=1,
+                        yticklabels=loading_labels)
+            #print(loading_r[c].dot( loading_r[c].T))
+            # Plot correlation of input data matrix
+            sns.heatmap(np.abs(np.corrcoef(X_[self.y==c].T).round(3)), vmin=0, vmax=1,  ax=ax3[0, c + 1], cmap='Reds',
+                        cbar=False, linecolor="w", linewidths=1, xticklabels=False)
+            ax3[0, c + 1].yaxis.set_ticklabels([])
+            ax3[0, c + 1].set_title('Cluster ' + str(c + 1), fontsize=12, color=cmap_[c])
+            ax3[1, c + 1].set_xticks([])
+            #ax3[1, c + 1].yaxis.set_ticklabels([])
+
+            if c == 1:
+                ax3[1, c].set_ylabel('Local Biplot', fontsize=12)
+                ax3[1, 1].tick_params(axis='x', labelsize=fontsize)
+                ax3[1, 1].tick_params(axis='y', labelsize=fontsize)
+                ax3[1, 1].xaxis.set_ticks(np.arange(len(loading_labels))+0.5)
+                ax3[1, 1].xaxis.set_ticklabels(loading_labels, rotation=90)
+                ax3[1, 1].yaxis.set_ticks(np.arange(len(loading_labels))+0.5)
+                ax3[1, 1].yaxis.set_ticklabels(loading_labels)
+
+
 
       if plot_:
+
         mean_ = np.repeat(Z[self.y==c].mean(axis=0).reshape(1,-1),(self.y==c).sum(),axis=0)
         print(f'plot {c+1}-th group')
 
-        self.biplot_global(Z[self.y==c], loading_r[c], rel_[c],labels=cmap_[c],mean_ = mean_, loading_labels=loading_labels,axbiplot=ax[0],axrel=ax[1],bar_c=cmap_[c])
+        self.biplot_global(Z[self.y==c], loading_r[c], rel_[c],labels=cmap_[c],mean_ = mean_, loading_labels= loading_labels, axbiplot=ax[0],axrel=ax[1],bar_c=cmap_[c], nval=nval)
+        if filename is not None:
+          self.save_fig(filename, fig=fig, tight_layout=True, fig_extension="pdf", resolution=300)
+
     ax[0].set_xlabel('Emb. 1')
     ax[0].set_ylabel('Emb. 2')
     ax[0].set_title(f'2D Local Biplot ({self.redm})')
+    if filename is not None:
+      fig3.savefig(("correlation_"+ filename+".pdf"), format="pdf", dpi=300)
     plt.show()
     self.loadings_l = loading_r
     self.Zr = Z
     self.rel_l = rel_
-    return
+
+
+    return self.y
+
+  # def local_biplot2D(self,X,y,plot_=True,loading_labels=None):
+  #   """
+  #   Performs local biplot analysis on the input data X with labels y.
+
+  #   Parameters:
+  #   -----------
+  #   X : array-like, shape (n_samples, n_features)
+  #       The input data.
+  #   y : array-like, shape (n_samples,) or int
+  #       The labels for the data points, or the number of clusters for k-means clustering.
+  #   plot_ : bool, optional, default=True
+  #       Whether to plot the biplot.
+  #   loading_labels : list of str, optional
+  #       Labels for the loadings.
+
+  #   Returns:
+  #   --------
+  #   None
+  #   """
+
+  #   print('Dimensionality Reduction...')
+  #   X_ = MinMaxScaler(feature_range=(-1, 1)).fit_transform(X)#minmaxscaler between -1 +1
+  #   Z = self.dim_red(X_) #Nonlinear Dimensionality Reduction
+  #   if type(y) == int: #no labels -> clustering
+  #      print('Performing clustering...')
+  #      self.y = KMeans(n_clusters=y,random_state=42).fit_predict(Z)
+  #      print(f'{self.y.shape} - {np.unique(self.y)}')
+  #   else:
+  #     self.y = y
+
+  #   C_ = len(np.unique(self.y))
+  #   Zl = np.zeros(Z.shape)
+  #   loading_ = np.zeros((C_,X.shape[1],2))
+  #   loading_r = np.zeros((C_,X.shape[1],2))
+  #   rel_ = np.zeros((C_,X.shape[1]))
+  #   opt_params = np.zeros((C_,7)) #affine transformation parameters
+
+  #   if plot_:
+  #     fig,ax = plt.subplots(1,2,figsize=(20, 7))
+  #     cmap_ = mpl.colormaps['jet'].resampled(C_)
+  #     cmap_ = cmap_(range(C_))
+
+  #   print('Affine Transformation...')
+  #   for c in np.unique(self.y):
+  #     print(f'{c+1}/{C_}')
+  #     loading_[c],rel_[c],Zl[self.y==c] = self.biplot2D(X_[self.y==c],plot_=False) #pca biplot on c-th group
+  #     Zl[self.y==c], opt_params[c],_ = self.affine_transformation_obj(Zl[self.y==c],Z[self.y==c]) #affine transformation training on c-th group
+  #     loading_r[c] = self.affine_transformation(opt_params[c],loading_[c]) #transform loadings on c-th group
+
+  #     if plot_:
+  #       mean_ = np.repeat(Z[self.y==c].mean(axis=0).reshape(1,-1),(self.y==c).sum(),axis=0)
+  #       print(f'plot {c+1}-th group')
+
+  #       self.biplot_global(Z[self.y==c], loading_r[c], rel_[c],labels=cmap_[c],mean_ = mean_, loading_labels=loading_labels,axbiplot=ax[0],axrel=ax[1],bar_c=cmap_[c])
+  #   ax[0].set_xlabel('Emb. 1')
+  #   ax[0].set_ylabel('Emb. 2')
+  #   ax[0].set_title(f'2D Local Biplot ({self.redm})')
+  #   plt.show()
+  #   self.loadings_l = loading_r
+  #   self.Zr = Z
+  #   self.rel_l = rel_
+  #   return
 
 
   def affine_transformation(self,params,points):
