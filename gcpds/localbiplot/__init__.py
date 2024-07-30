@@ -328,74 +328,339 @@ class LocalBiplot():
         plt.arrow(means_[n,0],means_[n,1],points[n,0],points[n,1],head_width=head_width,color=color,linestyle=linestyle)
       return
 
-  def biplot_global(self,score, loading, rel_,axbiplot,axrel,mean_ = None,labels=None, loading_labels=None, score_labels=None,bar_c='b'):
+  def biplot_global(self,score, loading, rel_,axbiplot,axrel,mean_ = None,labels=None, loading_labels=None, score_labels=None,bar_c='b', filename=None, nval=None):
     """
-    Creates a global biplot for the first two principal components.
+    Creates a biplot for the first two principal components.
 
     Parameters:
-    -----------
-    score : array-like, shape (n_samples, 2)
-        The PCA scores for the first two principal components.
-    loading : array-like, shape (n_features, 2)
-        The loadings for the first two principal components.
-    rel_ : array-like, shape (n_features,)
-        The relevance of each loading.
-    axbiplot : matplotlib.axes.Axes
-        The axes for the biplot.
-    axrel : matplotlib.axes.Axes
-        The axes for the relevance plot.
-    mean_ : array-like, shape (n_samples, 2), optional
-        The mean values for the data points.
-    labels : array-like, shape (n_samples,), optional
-        The labels for the data points.
-    loading_labels : list of str, optional
-        The labels for the loadings.
-    score_labels : list of str, optional
-        The labels for the scores.
-    bar_c : str, optional
-        The color of the relevance bars.
-
-    Returns:
-    --------
-    None
+    - score: 2D array of PCA scores, typically pca.transform(X)
+    - loading: 2D array of PCA loadings, typically pca.components_.T
+    - loading_labels: list of strings, feature names. (optional)
+    - score_labels: list of strings, sample labels. (optional)
     """
 
     xs = score[:, 0]
     ys = score[:, 1]
     n = loading.shape[0]
+    if nval is not None:
 
+      loading_order = np.argsort(rel_)[::-1]
+      print('my_ranking',loading_order)
+      #print('nval', nval)
+      # Extraer las 3 primeras para biplot:
+      plot_index =  loading_order[:nval]
+      # # Extraer nombres de las variables a mostrar:
+      names = loading_labels
+      loading = loading[plot_index]
+     # print(loading)
+      plot_names = [names[i] for i in plot_index]
+      #print(loading[plot_index, :])
+    else:
+      nval = loading.shape[0]
+      plot_names = loading_labels
+
+
+    print(plot_names)
     if mean_ is None:
       mean_ = np.zeros((n,2))
 
     # Plot scores
     if labels is not None:
-      axbiplot.scatter(xs, ys, alpha=0.5,c=labels)
+      cmap_ = mpl.colormaps['jet'].resampled(10)
+      #cmap_ = mpl.colormaps['jet'].resampled(len(np.unique(labels)))
+      axbiplot.scatter(xs, ys, alpha=0.3,c=labels, cmap=cmap_)
     else:
-      axbiplot.scatter(xs, ys, alpha=0.5)
+      axbiplot.scatter(xs, ys, alpha=0.3,cmap=cmap_)
 
     if score_labels is not None:
         for i, txt in enumerate(score_labels):
             axbiplot.annotate(txt, (xs[i], ys[i]), fontsize=8)
 
     # Plot loading vectors
-    for i in range(n):
+    for i in range(nval):
 
-        axbiplot.arrow(mean_[i,0], mean_[i,1], loading[i, 0]*max(abs(xs)), loading[i, 1]*max(abs(ys)),
-                      color='r', alpha=0.5, head_width=0.025, head_length=0.05)
+        axbiplot.arrow(mean_[i,0], mean_[i,1], loading[i, 0]*max(abs(xs)*1.5), loading[i, 1]*max(abs(ys)*1.5),
+                       color='gray', alpha=0.5, head_width=0.025, head_length=0.025)
         if loading_labels is not None:
-            axbiplot.text(mean_[i,0]+loading[i, 0]*max(abs(xs))*1.15, mean_[i,1]+loading[i, 1]*max(abs(ys))*1.15,
-                     loading_labels[i], color='g', ha='center', va='center')
+            axbiplot.text(mean_[i,0]+loading[i, 0]*max(abs(xs))*1.75, mean_[i,1]+loading[i, 1]*max(abs(ys))*1.75,
+                          plot_names[i], color='k', ha='center', va='center')
 
     axbiplot.set_xlabel("PC1")
     axbiplot.set_ylabel("PC2")
+    axbiplot.set_xticklabels([])
+    axbiplot.set_yticklabels([])
 
 
-    axrel.bar(np.arange(1,n+1),rel_,color=bar_c)
+    axrel.bar(np.arange(1,n+1),rel_,color=bar_c, alpha=0.5)
     axrel.set_xticks(np.arange(1,n+1),loading_labels,rotation=90)
     axrel.set_ylabel("Normalized Relevance")
+
     #plt.show()
 
+    # # Save the figure if filename is provided
+    # if filename is not None:
+    #    plt.savefig(filename,  bbox_inches='tight')
+
+  def nor_correlation(self,B): #B \in P x M
+    Corr_ = (B.T).dot(B)
+    C_ = B.dot(B.T)
+    dia = np.diag(C_).reshape(-1,1)
+    nor_ = np.sqrt(dia.dot(dia.T))+1e-10
+    return np.divide(C_,nor_) #P x P \in [0,1]
+
+
+
+  def correlations_by_target(self,data,X,y, col_names = ['FA', 'Lp2n', 'Lp4n', 'ALL V'], filename=None,loading_labels=None, key='Variety'):
+
+
+    fontsize = 13
+    X_ = MinMaxScaler(feature_range=(-1, 1)).fit_transform(X)#minmaxscaler between -1 +1
+    Z = self.dim_red(X_) #Nonlinear Dimensionality Reduction
+    if type(y) == int: #no labels -> clustering
+       print('Performing clustering...')
+       self.y = KMeans(n_clusters=y,random_state=42).fit_predict(Z)
+       print(f'{self.y.shape} - {np.unique(self.y)}')
+    else:
+      self.y = y
+
+
+    indices_FA = data[data[key] == 1].index.tolist()
+    indices_Lp2n = data[ data[key] == 2].index.tolist()
+    indices_Lp4n = data[data[key] == 3].index.tolist()
+
+    CORR_ALL_FA = np.abs(np.corrcoef(X_[indices_FA].T)).round(3)
+    CORR_ALL_Lp2n = np.abs(np.corrcoef(X_[indices_Lp2n].T)).round(3)
+    CORR_ALL_Lp4n = np.abs(np.corrcoef(X_[indices_Lp4n].T)).round(3)
+    CORR_X_ = np.abs(np.corrcoef(X_.T)).round(3)
+
+    ALL_corr_X_ = np.column_stack((CORR_ALL_FA[:-1, -1], CORR_ALL_Lp2n[:-1, -1], CORR_ALL_Lp4n[:-1, -1], CORR_X_[:-1, -1]))
+
+    C_ = len(np.unique(self.y))
+    cmap_ = mpl.colormaps['jet'].resampled(C_)
+    cmap_ = cmap_(range(C_))
+    plt.subplots_adjust(wspace= 0.05, hspace= 0.1)
+    fig1, ax1 = plt.subplots(1, C_+1, figsize=(10, 10))
+    fig2, ax2 = plt.subplots(1, C_+1, figsize=(10, 10))
+    plt.subplots_adjust(wspace= 0.05, hspace= 0.1)
+    Zl = np.zeros(Z.shape)
+    loading_ = np.zeros((C_,X.shape[1],2))
+    # loading_FA = np.zeros((C_,X.shape[1],2))
+    # loading_Lp2n = np.zeros((C_,X.shape[1],2))
+    # loading_Lp4n = np.zeros((C_,X.shape[1],2))
+    loading_r = np.zeros((C_,X.shape[1],2))
+    loading_r_FA = np.zeros((C_,X.shape[1],2))
+    loading_r_Lp2n = np.zeros((C_,X.shape[1],2))
+    loading_r_Lp4n = np.zeros((C_,X.shape[1],2))
+    rel_ = np.zeros((C_,X.shape[1]))
+    rel_FA = np.zeros((C_,X.shape[1]))
+    rel_Lp2n = np.zeros((C_,X.shape[1]))
+    rel_Lp4n = np.zeros((C_,X.shape[1]))
+    opt_params = np.zeros((C_,7)) #affine transformation parameters se tiene un arreglo de parametros para cada cluster
+
+    print('Affine Transformation...')
+    for c in np.unique(self.y):
+      print(f'{c+1}/{C_}')
+
+      loading_[c],rel_[c],Zl[self.y==c] = self.biplot2D(X_[self.y==c],plot_=False) #pca biplot on c-th group
+      Zl[self.y==c], opt_params[c],_ = self.affine_transformation_obj(Zl[self.y==c],Z[self.y==c]) #affine transformation training on c-th group
+      loading_r[c] = self.affine_transformation(opt_params[c],loading_[c]) #transform loadings on c-th group
+
+
+
+
+      sel_data = data.iloc[self.y==c]
+
+
+
+      indices_FA = sel_data[sel_data[key] == 1].index.tolist()
+
+      indices_Lp2n = sel_data[sel_data[key] == 2].index.tolist()
+      indices_Lp4n = sel_data[sel_data[key] == 3].index.tolist()
+
+
+
+      # print("indices_FA", indices_FA)
+      # print("indices_Lp2n", indices_Lp2n)
+      # print("indices_Lp4n", indices_Lp4n)
+      loading_[c],rel_[c],Zl[indices_FA] = self.biplot2D(X_[indices_FA],plot_=False)
+      Zl[indices_FA], opt_params[c],_ = self.affine_transformation_obj(Zl[indices_FA],Z[indices_FA]) #affine transformation training on c-th group
+      loading_r_FA[c] = self.affine_transformation(opt_params[c],loading_[c]) #transform loadings on c-th group
+
+
+      loading_[c],rel_[c],Zl[indices_Lp2n] = self.biplot2D(X_[indices_Lp2n],plot_=False)
+      Zl[indices_Lp2n], opt_params[c],_ = self.affine_transformation_obj(Zl[indices_Lp2n],Z[indices_Lp2n]) #affine transformation training on c-th group
+      loading_r_Lp2n[c] = self.affine_transformation(opt_params[c],loading_[c]) #transform loadings on c-th group
+
+
+
+      loading_[c],rel_[c], Zl[indices_Lp4n] = self.biplot2D(X_[indices_Lp4n],plot_=False)
+      Zl[indices_Lp4n], opt_params[c],_ = self.affine_transformation_obj(Zl[indices_Lp4n],Z[indices_Lp4n]) #affine transformation training on c-th group
+      loading_r_Lp4n[c] = self.affine_transformation(opt_params[c],loading_[c]) #transform loadings on c-th group
+
+
+      corr_ALL_X_C = np.abs(np.corrcoef(X_[self.y==c].T).round(3))
+      corr_FA_X_C =  np.abs(np.corrcoef(X_[indices_FA].T).round(3))
+      corr_Lp2n_X_C = np.abs(np.corrcoef(X_[indices_Lp2n].T).round(3))
+      corr_Lp4n_X_C =  np.abs(np.corrcoef(X_[indices_Lp4n].T).round(3))
+
+      ALL_corr_X_C = np.column_stack((corr_FA_X_C[:-1, -1], corr_Lp2n_X_C[:-1, -1], corr_Lp4n_X_C[:-1, -1], corr_ALL_X_C[:-1, -1]))
+
+
+      #Plot the non-linear local-Biplot SVD.
+      #print(loading_[c].shape)
+      corr_ALL = self.nor_correlation(loading_r[c]) #np.abs((loading_r[c].dot( loading_r[c].T))/(np.max([np.abs(loading_r[c].min()), np.abs(loading_r[c].max())])))
+      #print(corr_ALL.shape)
+      corr_FA = self.nor_correlation(loading_r_FA[c]) #np.abs((loading_r_FA[c].dot( loading_r_FA[c].T))/(np.max([np.abs(loading_r_FA[c].min()), np.abs(loading_r_FA[c].max())])))
+      corr_Lp2n = self.nor_correlation(loading_r_Lp2n[c]) # np.abs((loading_r_Lp2n[c].dot( loading_r_Lp2n[c].T))/(np.max([np.abs(loading_r_Lp2n[c].min()), np.abs(loading_r_Lp2n[c].max())])))
+      corr_Lp4n = self.nor_correlation(loading_r_Lp4n[c])  #np.abs((loading_r_Lp4n[c].dot( loading_r_Lp4n[c].T))/(np.max([np.abs(loading_r_Lp4n[c].min()), np.abs(loading_r_Lp4n[c].max())])))
+
+      ALL_corr = np.column_stack((corr_FA[:-1, -1], corr_Lp2n[:-1, -1], corr_Lp4n[:-1, -1], corr_ALL[:-1, -1]))
+
+      # im = ax1[i].imshow(ALL_corr, vmin = 0, vmax=1, cmap='Reds')
+      im = sns.heatmap(ALL_corr, vmin=0, vmax=1, cmap="Reds",cbar=False,ax=ax2[c+1], linewidths=.5,)
+      ax2[c+1].set_title('Cluster '+ str(c+1), color= cmap_[c], fontdict={'fontsize':10}, pad=12) # sns.heatmap(flights,cmap="YlGnBu"
+      ax2[c+1].tick_params(axis='y', labelsize=fontsize-3)
+      ax2[c+1].tick_params(axis='x', labelsize=fontsize-3)
+      ax2[c+1].set_yticks([])
+      ax2[c+1].xaxis.set_ticks(np.arange(len(col_names ))+0.5)
+      ax2[c+1].xaxis.set_ticklabels(col_names , rotation=45)
+
+
+      im_ = sns.heatmap(ALL_corr_X_C, vmin=0, vmax=1, cmap="Reds",cbar=False,ax=ax1[c+1], linewidths=.5,)
+      ax1[c+1].set_title('Cluster '+ str(c+1), color= cmap_[c], fontdict={'fontsize':10}, pad=12) # sns.heatmap(flights,cmap="YlGnBu"
+      ax1[c+1].tick_params(axis='y', labelsize=fontsize-3)
+      ax1[c+1].tick_params(axis='x', labelsize=fontsize-3)
+      ax1[c+1].set_yticks([])
+      ax1[c+1].xaxis.set_ticks(np.arange(len(col_names ))+0.5)
+      ax1[c+1].xaxis.set_ticklabels(col_names , rotation=45)
+
+    # Perform operations and plot in the first cell the correlation of all data
+    im1 = sns.heatmap(ALL_corr_X_ , vmin = 0, vmax=1, cmap='Reds', cbar=False, ax=ax1[0], linewidths=.5,)
+    ax1[0].set_title('Input data',  fontdict={'fontsize':fontsize}, pad=12) # sns.heatmap(flights,cmap="YlGnBu"
+    ax1[0].tick_params(axis='y', labelsize=fontsize-3)
+    ax1[0].tick_params(axis='x', labelsize=fontsize-3)
+    ax1[0].xaxis.set_ticks(np.arange(len(col_names ))+0.5)
+    ax1[0].xaxis.set_ticklabels(col_names , rotation=45) #, rotation=90
+    ax1[0].yaxis.set_ticks(np.arange(len(loading_labels[:-1]))+0.5)
+    ax1[0].yaxis.set_ticklabels(loading_labels[:-1], rotation=0) #, rotation=90
+
+    im2 = sns.heatmap(ALL_corr_X_ , vmin = 0, vmax=1, cmap='Reds', cbar=False, ax=ax2[0], linewidths=.5,)
+    ax2[0].set_title('Input data',  fontdict={'fontsize':fontsize}, pad=12) # sns.heatmap(flights,cmap="YlGnBu"
+    ax2[0].set_title('Input data',  fontdict={'fontsize':fontsize}, pad=12) # sns.heatmap(flights,cmap="YlGnBu"
+    ax2[0].tick_params(axis='y', labelsize=fontsize-3)
+    ax2[0].tick_params(axis='x', labelsize=fontsize-3)
+    ax2[0].xaxis.set_ticks(np.arange(len(col_names ))+0.5)
+    ax2[0].xaxis.set_ticklabels(col_names , rotation=45) #, rotation=90
+    ax2[0].yaxis.set_ticks(np.arange(len(loading_labels[:-1]))+0.5)
+    ax2[0].yaxis.set_ticklabels(loading_labels[:-1], rotation=0) #, rotation=90
+
+
+
+
+  #cbar_ax = fig3.add_axes([0.93, 0.15, 0.015, 0.68])
+
+    # #Draw colorbar in the figure
+    # cbar_ax = fig2.add_axes([0.12, -0.02, 0.8, 0.03])
+    # cbar_ax1 = fig1.add_axes([0.12, -0.02, 0.8, 0.03])
+
+    # Adjust position and size of the colorbars on the left side
+    # Adjust position and size of the colorbars on the right side
+    cbar_ax = fig2.add_axes([1.01, 0.15, 0.03, 0.7])  # [left, bottom, width, height]
+    cbar_ax1 = fig1.add_axes([1.01, 0.15, 0.03, 0.7])  # [left, bo
+    cbar_ax1.tick_params(labelsize=fontsize)
+    cbar_ax.tick_params(labelsize=fontsize)
+    norm = Normalize(vmin=0, vmax=1)  # Customize normalization if needed
+    sm = plt.cm.ScalarMappable(cmap='Reds', norm=norm)
+    sm.set_array([])
+    fig2.colorbar(sm, cax=cbar_ax, orientation='vertical')
+    fig2.tight_layout()
+    fig1.colorbar(sm, cax=cbar_ax1, orientation='vertical')
+    fig1.tight_layout()
+    if filename is not None:
+      fig2.savefig('2just_target_correlations_'+ filename +'.pdf',  bbox_inches='tight')
+      fig1.savefig('1just_target_correlations_'+ filename +'.pdf',  bbox_inches='tight')
+    #fig1.savefig('local-biplot_SVD_grass.pdf', bbox_inches='tight')
+    plt.show()
+
+
+
+    # self.loadings_l = loading_r
+    self.Zr = Z
+    # self.rel_l = rel_
+
+
     return
+
+    return
+
+  # def biplot_global(self,score, loading, rel_,axbiplot,axrel,mean_ = None,labels=None, loading_labels=None, score_labels=None,bar_c='b'):
+  #   """
+  #   Creates a global biplot for the first two principal components.
+
+  #   Parameters:
+  #   -----------
+  #   score : array-like, shape (n_samples, 2)
+  #       The PCA scores for the first two principal components.
+  #   loading : array-like, shape (n_features, 2)
+  #       The loadings for the first two principal components.
+  #   rel_ : array-like, shape (n_features,)
+  #       The relevance of each loading.
+  #   axbiplot : matplotlib.axes.Axes
+  #       The axes for the biplot.
+  #   axrel : matplotlib.axes.Axes
+  #       The axes for the relevance plot.
+  #   mean_ : array-like, shape (n_samples, 2), optional
+  #       The mean values for the data points.
+  #   labels : array-like, shape (n_samples,), optional
+  #       The labels for the data points.
+  #   loading_labels : list of str, optional
+  #       The labels for the loadings.
+  #   score_labels : list of str, optional
+  #       The labels for the scores.
+  #   bar_c : str, optional
+  #       The color of the relevance bars.
+
+  #   Returns:
+  #   --------
+  #   None
+  #   """
+
+  #   xs = score[:, 0]
+  #   ys = score[:, 1]
+  #   n = loading.shape[0]
+
+  #   if mean_ is None:
+  #     mean_ = np.zeros((n,2))
+
+  #   # Plot scores
+  #   if labels is not None:
+  #     axbiplot.scatter(xs, ys, alpha=0.5,c=labels)
+  #   else:
+  #     axbiplot.scatter(xs, ys, alpha=0.5)
+
+  #   if score_labels is not None:
+  #       for i, txt in enumerate(score_labels):
+  #           axbiplot.annotate(txt, (xs[i], ys[i]), fontsize=8)
+
+  #   # Plot loading vectors
+  #   for i in range(n):
+
+  #       axbiplot.arrow(mean_[i,0], mean_[i,1], loading[i, 0]*max(abs(xs)), loading[i, 1]*max(abs(ys)),
+  #                     color='r', alpha=0.5, head_width=0.025, head_length=0.05)
+  #       if loading_labels is not None:
+  #           axbiplot.text(mean_[i,0]+loading[i, 0]*max(abs(xs))*1.15, mean_[i,1]+loading[i, 1]*max(abs(ys))*1.15,
+  #                    loading_labels[i], color='g', ha='center', va='center')
+
+  #   axbiplot.set_xlabel("PC1")
+  #   axbiplot.set_ylabel("PC2")
+
+
+  #   axrel.bar(np.arange(1,n+1),rel_,color=bar_c)
+  #   axrel.set_xticks(np.arange(1,n+1),loading_labels,rotation=90)
+  #   axrel.set_ylabel("Normalized Relevance")
+  #   #plt.show()
+
+  #   return
 
 
 if __name__ == "__main__":
