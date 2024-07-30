@@ -15,7 +15,7 @@ setup(
     maintainer="Jenniffer Carolina Triana Martinez",
     maintainer_email="jectrianama@unal.edu.co",
     download_url='',
-    install_requires=[ 'matplotlib', 'numpy', 'pandas', 'seaborn', 'scikit-learn', 'scipy'],
+    install_requires=[ 'matplotlib', 'numpy', 'pandas', 'seaborn', 'scikit-learn', 'scipy', 'umap-learn'],
     scripts=[
     ],
     include_package_data=True,
