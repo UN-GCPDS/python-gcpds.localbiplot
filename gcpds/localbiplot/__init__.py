@@ -28,15 +28,13 @@ local biplot
 #librerias a importar
 
 import os
-#import warnings
-#warnings.filterwarnings("ignore")
-
-import os
 import warnings
 warnings.filterwarnings("ignore")
 
 
 import numpy as np
+import seaborn as sns
+from seaborn import kdeplot
 from scipy.special import softmax
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
@@ -46,6 +44,8 @@ from sklearn.preprocessing import MinMaxScaler
 from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from matplotlib.colors import Normalize
+from seaborn import kdeplot
 
 
 
