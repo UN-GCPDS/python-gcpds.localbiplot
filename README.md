@@ -1,4 +1,4 @@
-<img src="_images/localbip_logo.png" alt="biplot_logo" style="width: 150px;"/> 
+<img src="docs/source/notebooks/_images/localbip_logo.png" alt="biplot_logo" style="width: 150px;"/> 
 
 # UMAP-Based Local Biplot
 
