@@ -8,7 +8,7 @@ Here, we introduce Local Biplot, a methodological framework tailored for discern
 Please, if you use this code, cite this paper: [Crop Water Status Analysis from Complex Agricultural Data Using UMAP-Based Local Biplot](https://www.mdpi.com/2072-4292/16/15/2854)]
 
 
-### 2. Requeriments
+### Requeriments
 
 
 localbiplot requires Python >= 3.8 and internet access to download the libraries
