@@ -34,23 +34,5 @@ localbiplot necesita Python >= 3.8  y acceso a internet para descargar las libre
 import gcpds.localbiplot as lb
 ```
 
-### 3. Entorno y/o Lenguaje de desarrollo utilizado
-
-La biblioteca local biplot esta desarrollado utilizando python 3.11. Ademas, el núcleo principal de este software se encuentra en librerias como matplotlib, y scipy, diseñadas  para manejar todo lo relacionado con graficas y manejo de estructuras de datos para asi amplíar las capacidades de la herramienta.
 
 
-
-
-### 4. Descripción de los diferentes programas (módulos) que hacen parte del sistema de información y su interrelación (teniendo en cuenta que un programa de computador puede estar compuesto de uno o varios módulos que cumplen funciones específicas)
-
-
-
-
-
-### 5. Motores de bases de datos sobre los que fue desarrollado el sistema (en caso de que este basado en archivos planos se debe realizar una descripción de la forma como operan).
-
-### 6. Diccionario de datos (descripción de las tablas, campos, tipos y tamaño de campos que la conforman, identificando llaves primarias y secundarias si es del caso)
-
-### 7. Diagrama entidad relación de las estructuras de datos o en su defecto estructura de funcionamiento e interacción del sistema de archivos
-
-### 8. Principales casos de uso
