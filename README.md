@@ -13,7 +13,7 @@ Please, if you use this code, cite this paper: [Crop Water Status Analysis from 
 
 localbiplot requires Python >= 3.8 and internet access to download the libraries
 
-2.1 Install from source code
+Install from source code
 
 
 ```python
@@ -21,11 +21,20 @@ localbiplot requires Python >= 3.8 and internet access to download the libraries
 
 ```
 
-2.2 Add the library in your code as follows:
+Add the library in your code as follows:
 
 
 ```python
 import gcpds.localbiplot as lb
+```
+Execute the method
+
+```python
+localbiplot = lb.LocalBiplot(affine_='rotation',redm='umap')
+#global pca biplot
+loading,rel_,score = localbiplot.biplot2D(Xdata,plot_=True,labels=ydata,loading_labels=Xdata.columns)
+#local biplot
+localbiplot.local_biplot2D(Xdata,y=ydata,plot_=True,loading_labels=Xdata.columns,  filename="synth_local_bip")
 ```
 
 
