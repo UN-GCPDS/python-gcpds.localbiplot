@@ -47,6 +47,11 @@ import matplotlib as mpl
 from matplotlib.colors import Normalize
 from seaborn import kdeplot
 
+import os
+import warnings
+warnings.filterwarnings("ignore")
+
+
 
 
 
@@ -238,8 +243,7 @@ class LocalBiplot():
     ax[0].set_xlabel('Emb. 1')
     ax[0].set_ylabel('Emb. 2')
     ax[0].set_title(f'2D Local Biplot ({self.redm})')
-  
-    if corrplot_ and filename is not None:
+    if filename is not None:
       fig3.savefig(("correlation_"+ filename+".pdf"), format="pdf", dpi=300)
     plt.show()
     self.loadings_l = loading_r
@@ -566,6 +570,8 @@ class LocalBiplot():
     return
 
     return
+
+
  
 
 
