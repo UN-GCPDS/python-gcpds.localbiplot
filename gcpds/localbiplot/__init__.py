@@ -163,7 +163,7 @@ class LocalBiplot():
      rel_ = softmax((abs(loading[:,:2].dot(np.diag(pca.explained_variance_[:2])))).sum(axis=1)) # se calcula la relevancia de cada variable usando una softmax
     
      if plot_:
-        fig,ax = plt.subplots(1,1,figsize=(10, 7))
+        fig,ax = plt.subplots(1,1,figsize=(9, 7))
         self.biplot_global(score, loading, rel_,labels=labels, loading_labels=loading_labels,axbiplot=ax,axrel=ax, nval=nval) # se dibujan las relevancias y el scatter del biplot
         #ax[0].set_title('2D PCA Global Biplot')
         if filename is not None:
