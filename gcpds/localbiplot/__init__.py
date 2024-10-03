@@ -24,8 +24,8 @@ local biplot
 #     except ImportError:
 #         pip install {library} --quiet
 
+ 
 
-#librerias a importar
 
 import os
 import warnings
@@ -46,12 +46,6 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from matplotlib.colors import Normalize
 from seaborn import kdeplot
-
-import os
-import warnings
-warnings.filterwarnings("ignore")
-
-
 
 
 
@@ -570,6 +564,8 @@ class LocalBiplot():
     return
 
     return
+
+
 
 
  
