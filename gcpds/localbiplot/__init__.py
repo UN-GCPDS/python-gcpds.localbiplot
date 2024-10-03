@@ -305,7 +305,7 @@ class LocalBiplot():
 
   def save_fig(self, fig_name, fig, tight_layout=True, fig_extension="pdf", resolution=300):
     path = os.path.join(fig_name + "." + fig_extension)
-    print("Saving figure", fig_name)
+    #print("Saving figure", fig_name)
     if tight_layout:
         fig.tight_layout()
     fig.savefig(path, format=fig_extension, dpi=resolution)
