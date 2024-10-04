@@ -7,6 +7,7 @@ Here, we introduce Local Biplot, a methodological framework tailored for discern
 
 Please, if you use this code, cite this paper: [Crop Water Status Analysis from Complex Agricultural Data Using UMAP-Based Local Biplot](https://www.mdpi.com/2072-4292/16/15/2854)]
 
+*You can check this* [Example.](https://github.com/UN-GCPDS/python-gcpds.localbiplot/blob/main/docs/source/notebooks/01-module%20example.ipynb)
 
 ### Requeriments
 
